@@ -21,15 +21,17 @@ h3 {
     margin: 10px 0;
 }
 
-#map {
+/* スクロール可能エリア */
+#map-wrapper {
     width: 100%;
     height: calc(100vh - 120px);
-    touch-action: pan-x pan-y; /* ← ここが重要 */
+    overflow: auto;  /* ← これが重要 */
 }
 
-svg {
-    width: 100%;
-    height: 100%;
+/* SVGを大きめに表示 */
+#map-wrapper svg {
+    width: 1200px;   /* ← ズーム用に大きく */
+    height: auto;
 }
 
 /* 都道府県 */
@@ -37,24 +39,10 @@ svg {
     fill: #ffffff;
     stroke: #333;
     stroke-width: 0.5;
-    cursor: pointer;
 }
 
 .selected {
     fill: #e60012 !important;
-}
-
-/* ラベル */
-.pref-label {
-    font-size: 6px;
-    text-anchor: middle;
-    pointer-events: none;
-    fill: #000;
-    opacity: 0;
-}
-
-.show-labels .pref-label {
-    opacity: 1;
 }
 
 /* ボタン */
@@ -75,65 +63,25 @@ svg {
 
 <body>
 
-<h3>イベント開催県を選択</h3>
-<div id="map"></div>
-<button id="resetBtn">すべて解除</button>
+<h3>いかの全国制覇</h3>
 
-<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<div id="map-wrapper"></div>
+
+<button id="resetBtn">すべて解除</button>
 
 <script>
 fetch("./map-full.svg")
 .then(res => res.text())
 .then(svgData => {
 
-    document.getElementById("map").innerHTML = svgData
-    const svg = document.querySelector("svg")
-
-    // viewBox補正
-    if (!svg.getAttribute("viewBox")) {
-        const bbox = svg.getBBox()
-        svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
-    }
+    document.getElementById("map-wrapper").innerHTML = svgData
 
     const prefs = document.querySelectorAll('.prefecture')
 
     prefs.forEach(pref => {
-
         pref.addEventListener('click', function() {
             this.classList.toggle('selected')
         })
-
-        const bbox = pref.getBBox()
-        const label = document.createElementNS("http://www.w3.org/2000/svg", "text")
-
-        label.setAttribute("x", bbox.x + bbox.width / 2)
-        label.setAttribute("y", bbox.y + bbox.height / 2)
-        label.setAttribute("class", "pref-label")
-        label.textContent = pref.dataset.name
-
-        svg.appendChild(label)
-    })
-
-    const panZoom = svgPanZoom(svg, {
-        zoomEnabled: true,
-        panEnabled: true,
-        controlIconsEnabled: false,
-        dblClickZoomEnabled: false,
-        mouseWheelZoomEnabled: true,
-        pinchZoomEnabled: true,  // ← 明示的にON
-        fit: true,
-        center: true,
-        minZoom: 1,
-        maxZoom: 20
-    })
-
-    // ズーム時ラベル表示
-    svg.addEventListener("zoom", function() {
-        if (panZoom.getZoom() > 3) {
-            svg.classList.add("show-labels")
-        } else {
-            svg.classList.remove("show-labels")
-        }
     })
 
     document.getElementById('resetBtn').addEventListener('click', () => {
