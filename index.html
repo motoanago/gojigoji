@@ -11,8 +11,12 @@ html, body {
     padding: 0;
     font-family: sans-serif;
     background: #f5f5f5;
+
+    /* ★ ページ全体を左右反転 */
+    transform: scaleX(-1);
 }
 
+/* 画面レイアウト */
 h3 {
     text-align: center;
     margin: 10px 0;
@@ -38,7 +42,6 @@ h3 {
     fill: #e60012 !important;
 }
 
-/* 県名 */
 .pref-label {
     font-size: 12px;
     text-anchor: middle;
@@ -61,7 +64,7 @@ h3 {
 
 <body>
 
-<h3>イベント開催県を選択</h3>
+<h3>はいせくごんぜのかい</h3>
 <div id="map-wrapper"></div>
 <button id="resetBtn">すべて解除</button>
 
@@ -79,7 +82,6 @@ fetch(mapFile)
 
     const svg = document.querySelector("svg")
 
-    // viewBox補正
     if (!svg.getAttribute("viewBox")) {
         const bbox = svg.getBBox()
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
@@ -87,7 +89,7 @@ fetch(mapFile)
 
     const prefs = document.querySelectorAll('.prefecture')
 
-    // ===== ピンチ判定 =====
+    // ピンチ判定
     document.addEventListener("touchstart", function(e){
         if(e.touches.length > 1){
             isPinching = true
@@ -102,8 +104,7 @@ fetch(mapFile)
 
     prefs.forEach(pref => {
 
-        // 1本指タップのみ選択
-        pref.addEventListener('touchend', function(e){
+        pref.addEventListener('touchend', function(){
             if(isPinching) return
             this.classList.toggle('selected')
         })
@@ -112,7 +113,7 @@ fetch(mapFile)
             this.classList.toggle('selected')
         })
 
-        // ===== 県名生成 =====
+        // 県名生成
         if(pref.dataset.name){
             const bbox = pref.getBBox()
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text")
