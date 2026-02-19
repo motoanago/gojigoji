@@ -2,24 +2,32 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport"
+content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
 <title>日本地図イベント管理</title>
 
 <style>
-body {
+html, body {
     margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
     font-family: sans-serif;
     background: #f5f5f5;
-    text-align: center;
 }
 
+/* タイトル */
 h3 {
-    margin: 15px 0;
+    text-align: center;
+    margin: 10px 0;
 }
 
+/* 地図エリア */
 #map {
     width: 100%;
-    height: 80vh;
+    height: calc(100vh - 120px);
+    touch-action: none; /* スマホ操作安定 */
 }
 
 svg {
@@ -27,17 +35,20 @@ svg {
     height: 100%;
 }
 
+/* 都道府県 */
 .prefecture {
     fill: #ffffff;
     stroke: #333;
     stroke-width: 0.5;
     cursor: pointer;
+    transition: fill 0.2s;
 }
 
 .selected {
     fill: #e60012 !important;
 }
 
+/* ラベル */
 .pref-label {
     font-size: 6px;
     text-anchor: middle;
@@ -50,14 +61,19 @@ svg {
     opacity: 1;
 }
 
+/* 下固定ボタン */
 #resetBtn {
-    margin: 15px;
-    padding: 10px 20px;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 14px 30px;
     font-size: 16px;
     border: none;
     background: #333;
     color: #fff;
-    border-radius: 5px;
+    border-radius: 30px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 </style>
 </head>
@@ -66,7 +82,7 @@ svg {
 
 <h3>イベント開催県を選択</h3>
 <div id="map"></div>
-<button id="resetBtn">選択をすべて解除</button>
+<button id="resetBtn">すべて解除</button>
 
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 
@@ -79,7 +95,7 @@ fetch("./map-full.svg")
 
     const svg = document.querySelector("svg")
 
-    // ★ viewBoxが無い場合は追加する
+    // viewBox自動補正（無い場合）
     if (!svg.getAttribute("viewBox")) {
         const bbox = svg.getBBox()
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
@@ -89,10 +105,13 @@ fetch("./map-full.svg")
 
     prefs.forEach(pref => {
 
-        pref.addEventListener('click', function() {
+        // タップ対応（clickより安定）
+        pref.addEventListener('pointerup', function(e) {
+            e.stopPropagation()
             this.classList.toggle('selected')
         })
 
+        // ラベル生成
         const bbox = pref.getBBox()
         const label = document.createElementNS("http://www.w3.org/2000/svg", "text")
 
@@ -106,13 +125,15 @@ fetch("./map-full.svg")
 
     const panZoom = svgPanZoom(svg, {
         zoomEnabled: true,
-        controlIconsEnabled: true,
+        controlIconsEnabled: false,
         fit: true,
         center: true,
         minZoom: 1,
-        maxZoom: 20
+        maxZoom: 20,
+        dblClickZoomEnabled: false
     })
 
+    // ズーム量でラベル表示
     svg.addEventListener("zoom", function() {
         if (panZoom.getZoom() > 3) {
             svg.classList.add("show-labels")
@@ -121,6 +142,7 @@ fetch("./map-full.svg")
         }
     })
 
+    // 全解除
     document.getElementById('resetBtn').addEventListener('click', () => {
         prefs.forEach(p => p.classList.remove('selected'))
     })
