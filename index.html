@@ -22,21 +22,22 @@ h3 {
     height: 80vh;
 }
 
-/* 都道府県 */
+svg {
+    width: 100%;
+    height: 100%;
+}
+
 .prefecture {
     fill: #ffffff;
     stroke: #333;
     stroke-width: 0.5;
     cursor: pointer;
-    transition: fill 0.2s;
 }
 
-/* 選択状態 */
 .selected {
     fill: #e60012 !important;
 }
 
-/* 県名ラベル */
 .pref-label {
     font-size: 6px;
     text-anchor: middle;
@@ -45,12 +46,10 @@ h3 {
     opacity: 0;
 }
 
-/* ズーム時のみ表示 */
 .show-labels .pref-label {
     opacity: 1;
 }
 
-/* ボタン */
 #resetBtn {
     margin: 15px;
     padding: 10px 20px;
@@ -60,44 +59,40 @@ h3 {
     color: #fff;
     border-radius: 5px;
 }
-
-#resetBtn:active {
-    background: #555;
-}
 </style>
 </head>
 
 <body>
 
 <h3>イベント開催県を選択</h3>
-
 <div id="map"></div>
-
 <button id="resetBtn">選択をすべて解除</button>
 
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 
 <script>
-const map = "./map-full.svg"
-const container = document.querySelector('#map')
-
-fetch(map)
+fetch("./map-full.svg")
 .then(res => res.text())
 .then(svgData => {
 
-    container.innerHTML = svgData
+    document.getElementById("map").innerHTML = svgData
 
-    const svg = document.querySelector('svg')
+    const svg = document.querySelector("svg")
+
+    // ★ viewBoxが無い場合は追加する
+    if (!svg.getAttribute("viewBox")) {
+        const bbox = svg.getBBox()
+        svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
+    }
+
     const prefs = document.querySelectorAll('.prefecture')
 
-    // ===== クリックで複数選択 =====
     prefs.forEach(pref => {
 
         pref.addEventListener('click', function() {
             this.classList.toggle('selected')
         })
 
-        // ===== 県名ラベル生成 =====
         const bbox = pref.getBBox()
         const label = document.createElementNS("http://www.w3.org/2000/svg", "text")
 
@@ -109,7 +104,6 @@ fetch(map)
         svg.appendChild(label)
     })
 
-    // ===== ズーム設定 =====
     const panZoom = svgPanZoom(svg, {
         zoomEnabled: true,
         controlIconsEnabled: true,
@@ -119,7 +113,6 @@ fetch(map)
         maxZoom: 20
     })
 
-    // ===== ズーム量で県名表示 =====
     svg.addEventListener("zoom", function() {
         if (panZoom.getZoom() > 3) {
             svg.classList.add("show-labels")
@@ -128,7 +121,6 @@ fetch(map)
         }
     })
 
-    // ===== 全解除ボタン =====
     document.getElementById('resetBtn').addEventListener('click', () => {
         prefs.forEach(p => p.classList.remove('selected'))
     })
