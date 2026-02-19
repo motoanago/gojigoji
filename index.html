@@ -2,9 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width, initial-scale=1">
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>日本地図イベント管理</title>
 
 <style>
@@ -20,19 +18,16 @@ h3 {
     margin: 10px 0;
 }
 
-/* 地図エリア */
 #map-wrapper {
     width: 100%;
     height: 75vh;
 }
 
-/* SVGを画面幅にフィット */
 #map-wrapper svg {
     width: 100%;
     height: 100%;
 }
 
-/* 都道府県 */
 .prefecture {
     fill: #ffffff;
     stroke: #333;
@@ -43,15 +38,14 @@ h3 {
     fill: #e60012 !important;
 }
 
-/* ラベル */
+/* 県名 */
 .pref-label {
-    font-size: 10px;
+    font-size: 12px;
     text-anchor: middle;
     pointer-events: none;
     fill: #000;
 }
 
-/* ボタン */
 #resetBtn {
     display: block;
     margin: 20px auto;
@@ -75,6 +69,8 @@ h3 {
 const isMobile = /iPhone|Android.+Mobile/.test(navigator.userAgent)
 const mapFile = isMobile ? "./map-mobile.svg" : "./map-full.svg"
 
+let isPinching = false
+
 fetch(mapFile)
 .then(res => res.text())
 .then(svgData => {
@@ -83,7 +79,7 @@ fetch(mapFile)
 
     const svg = document.querySelector("svg")
 
-    // viewBox補正（重要）
+    // viewBox補正
     if (!svg.getAttribute("viewBox")) {
         const bbox = svg.getBBox()
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
@@ -91,11 +87,24 @@ fetch(mapFile)
 
     const prefs = document.querySelectorAll('.prefecture')
 
+    // ===== ピンチ判定 =====
+    document.addEventListener("touchstart", function(e){
+        if(e.touches.length > 1){
+            isPinching = true
+        }
+    })
+
+    document.addEventListener("touchend", function(e){
+        if(e.touches.length < 2){
+            setTimeout(()=>{ isPinching = false }, 100)
+        }
+    })
+
     prefs.forEach(pref => {
 
-        // タップ対応（iOS安定）
-        pref.addEventListener('touchstart', function(e){
-            e.preventDefault()
+        // 1本指タップのみ選択
+        pref.addEventListener('touchend', function(e){
+            if(isPinching) return
             this.classList.toggle('selected')
         })
 
@@ -103,7 +112,7 @@ fetch(mapFile)
             this.classList.toggle('selected')
         })
 
-        // ラベル生成
+        // ===== 県名生成 =====
         if(pref.dataset.name){
             const bbox = pref.getBBox()
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text")
