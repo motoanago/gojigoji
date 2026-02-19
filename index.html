@@ -2,9 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width, initial-scale=1">
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>日本地図イベント管理</title>
 
 <style>
@@ -21,17 +19,24 @@ h3 {
     margin: 10px 0;
 }
 
-/* スクロール可能エリア */
+/* 地図表示エリア */
 #map-wrapper {
     width: 100%;
     height: calc(100vh - 120px);
-    overflow: auto;  /* ← これが重要 */
+    overflow: auto; /* ← スマホピンチ＆スクロール対応 */
 }
 
-/* SVGを大きめに表示 */
+/* SVGサイズ */
 #map-wrapper svg {
-    width: 1200px;   /* ← ズーム用に大きく */
+    width: 1200px;   /* PC用基準サイズ */
     height: auto;
+}
+
+/* スマホ時は少し小さめ */
+@media (max-width: 768px) {
+    #map-wrapper svg {
+        width: 900px;
+    }
 }
 
 /* 都道府県 */
@@ -39,13 +44,15 @@ h3 {
     fill: #ffffff;
     stroke: #333;
     stroke-width: 0.5;
+    cursor: pointer;
+    transition: fill 0.2s;
 }
 
 .selected {
     fill: #e60012 !important;
 }
 
-/* ボタン */
+/* 下固定ボタン */
 #resetBtn {
     position: fixed;
     bottom: 20px;
@@ -57,20 +64,24 @@ h3 {
     background: #333;
     color: #fff;
     border-radius: 30px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 </style>
 </head>
 
 <body>
 
-<h3>いかの全国制覇</h3>
-
+<h3>いかのぜんごくせいは</h3>
 <div id="map-wrapper"></div>
-
 <button id="resetBtn">すべて解除</button>
 
 <script>
-fetch("./map-full.svg")
+// ===== デバイス判定 =====
+const isMobile = /iPhone|Android.+Mobile/.test(navigator.userAgent)
+const mapFile = isMobile ? "./map-mobile.svg" : "./map-full.svg"
+
+// ===== SVG読み込み =====
+fetch(mapFile)
 .then(res => res.text())
 .then(svgData => {
 
@@ -78,16 +89,24 @@ fetch("./map-full.svg")
 
     const prefs = document.querySelectorAll('.prefecture')
 
+    // ===== 都道府県クリック =====
     prefs.forEach(pref => {
-        pref.addEventListener('click', function() {
+        pref.addEventListener('click', function(e) {
+            e.stopPropagation()
             this.classList.toggle('selected')
         })
     })
 
+    // ===== 全解除ボタン =====
     document.getElementById('resetBtn').addEventListener('click', () => {
         prefs.forEach(p => p.classList.remove('selected'))
     })
 
+})
+.catch(err => {
+    document.getElementById("map-wrapper").innerHTML =
+        "<p style='color:red;text-align:center'>地図の読み込みに失敗しました</p>"
+    console.error(err)
 })
 </script>
 
