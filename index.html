@@ -11,12 +11,15 @@ html, body {
     padding: 0;
     font-family: sans-serif;
     background: #f5f5f5;
-
-    /* ★ ページ全体を左右反転 */
-    transform: scaleX(-1);
 }
 
-/* 画面レイアウト */
+/* ★ 全体反転用ラッパー */
+#mirror {
+    transform: scaleX(-1);
+    transform-origin: center;
+}
+
+/* レイアウト */
 h3 {
     text-align: center;
     margin: 10px 0;
@@ -64,9 +67,13 @@ h3 {
 
 <body>
 
+<div id="mirror">
+
 <h3>イベント開催県を選択</h3>
 <div id="map-wrapper"></div>
 <button id="resetBtn">すべて解除</button>
+
+</div>
 
 <script>
 const isMobile = /iPhone|Android.+Mobile/.test(navigator.userAgent)
@@ -89,7 +96,6 @@ fetch(mapFile)
 
     const prefs = document.querySelectorAll('.prefecture')
 
-    // ピンチ判定
     document.addEventListener("touchstart", function(e){
         if(e.touches.length > 1){
             isPinching = true
@@ -113,7 +119,6 @@ fetch(mapFile)
             this.classList.toggle('selected')
         })
 
-        // 県名生成
         if(pref.dataset.name){
             const bbox = pref.getBBox()
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text")
