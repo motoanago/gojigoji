@@ -13,42 +13,56 @@ body {
     text-align: center;
 }
 
-#map-wrapper {
-    width: 100%;
-    height: 85vh;
-    overflow: hidden;
+h3 {
+    margin: 15px 0;
 }
 
-svg {
+#map {
     width: 100%;
-    height: 100%;
+    height: 80vh;
 }
 
-/* 初期白 */
+/* 都道府県 */
 .prefecture {
     fill: #ffffff;
     stroke: #333;
     stroke-width: 0.5;
     cursor: pointer;
+    transition: fill 0.2s;
 }
 
-/* 選択赤 */
+/* 選択状態 */
 .selected {
-    fill: #e60012;
+    fill: #e60012 !important;
 }
 
-/* 県名 */
+/* 県名ラベル */
 .pref-label {
-    font-size: 4px;
+    font-size: 6px;
     text-anchor: middle;
     pointer-events: none;
     fill: #000;
     opacity: 0;
 }
 
-/* ズーム時表示 */
+/* ズーム時のみ表示 */
 .show-labels .pref-label {
     opacity: 1;
+}
+
+/* ボタン */
+#resetBtn {
+    margin: 15px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    background: #333;
+    color: #fff;
+    border-radius: 5px;
+}
+
+#resetBtn:active {
+    background: #555;
 }
 </style>
 </head>
@@ -57,45 +71,45 @@ svg {
 
 <h3>イベント開催県を選択</h3>
 
-<div id="map-wrapper"></div>
+<div id="map"></div>
+
+<button id="resetBtn">選択をすべて解除</button>
 
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 
 <script>
-fetch("./map-full.svg")
+const map = "./map-full.svg"
+const container = document.querySelector('#map')
+
+fetch(map)
 .then(res => res.text())
 .then(svgData => {
 
-    document.getElementById("map-wrapper").innerHTML = svgData;
+    container.innerHTML = svgData
 
-    const svg = document.querySelector("svg");
-    const prefectures = document.querySelectorAll("svg path");
+    const svg = document.querySelector('svg')
+    const prefs = document.querySelectorAll('.prefecture')
 
-    // クリック機能
-    prefectures.forEach(pref => {
+    // ===== クリックで複数選択 =====
+    prefs.forEach(pref => {
 
-        pref.classList.add("prefecture");
+        pref.addEventListener('click', function() {
+            this.classList.toggle('selected')
+        })
 
-        pref.addEventListener("click", function() {
+        // ===== 県名ラベル生成 =====
+        const bbox = pref.getBBox()
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text")
 
-            prefectures.forEach(p => p.classList.remove("selected"));
-            this.classList.add("selected");
+        label.setAttribute("x", bbox.x + bbox.width / 2)
+        label.setAttribute("y", bbox.y + bbox.height / 2)
+        label.setAttribute("class", "pref-label")
+        label.textContent = pref.dataset.name
 
-        });
+        svg.appendChild(label)
+    })
 
-        // 県名ラベル追加
-        const bbox = pref.getBBox();
-        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-
-        label.setAttribute("x", bbox.x + bbox.width / 2);
-        label.setAttribute("y", bbox.y + bbox.height / 2);
-        label.setAttribute("class", "pref-label");
-        label.textContent = pref.getAttribute("data-name");
-
-        svg.appendChild(label);
-    });
-
-    // ズーム機能
+    // ===== ズーム設定 =====
     const panZoom = svgPanZoom(svg, {
         zoomEnabled: true,
         controlIconsEnabled: true,
@@ -103,22 +117,24 @@ fetch("./map-full.svg")
         center: true,
         minZoom: 1,
         maxZoom: 20
-    });
+    })
 
-    // ズーム量でラベル表示切替
+    // ===== ズーム量で県名表示 =====
     svg.addEventListener("zoom", function() {
-        const zoomLevel = panZoom.getZoom();
-
-        if (zoomLevel > 3) {
-            svg.classList.add("show-labels");
+        if (panZoom.getZoom() > 3) {
+            svg.classList.add("show-labels")
         } else {
-            svg.classList.remove("show-labels");
+            svg.classList.remove("show-labels")
         }
-    });
+    })
 
-});
+    // ===== 全解除ボタン =====
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        prefs.forEach(p => p.classList.remove('selected'))
+    })
+
+})
 </script>
 
 </body>
 </html>
-
