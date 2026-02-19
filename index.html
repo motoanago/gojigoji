@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport"
-content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+content="width=device-width, initial-scale=1">
 
 <title>日本地図イベント管理</title>
 
@@ -12,22 +12,19 @@ html, body {
     margin: 0;
     padding: 0;
     height: 100%;
-    overflow: hidden;
     font-family: sans-serif;
     background: #f5f5f5;
 }
 
-/* タイトル */
 h3 {
     text-align: center;
     margin: 10px 0;
 }
 
-/* 地図エリア */
 #map {
     width: 100%;
     height: calc(100vh - 120px);
-    touch-action: none; /* スマホ操作安定 */
+    touch-action: pan-x pan-y; /* ← ここが重要 */
 }
 
 svg {
@@ -41,7 +38,6 @@ svg {
     stroke: #333;
     stroke-width: 0.5;
     cursor: pointer;
-    transition: fill 0.2s;
 }
 
 .selected {
@@ -61,7 +57,7 @@ svg {
     opacity: 1;
 }
 
-/* 下固定ボタン */
+/* ボタン */
 #resetBtn {
     position: fixed;
     bottom: 20px;
@@ -73,7 +69,6 @@ svg {
     background: #333;
     color: #fff;
     border-radius: 30px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 </style>
 </head>
@@ -92,10 +87,9 @@ fetch("./map-full.svg")
 .then(svgData => {
 
     document.getElementById("map").innerHTML = svgData
-
     const svg = document.querySelector("svg")
 
-    // viewBox自動補正（無い場合）
+    // viewBox補正
     if (!svg.getAttribute("viewBox")) {
         const bbox = svg.getBBox()
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
@@ -105,13 +99,10 @@ fetch("./map-full.svg")
 
     prefs.forEach(pref => {
 
-        // タップ対応（clickより安定）
-        pref.addEventListener('pointerup', function(e) {
-            e.stopPropagation()
+        pref.addEventListener('click', function() {
             this.classList.toggle('selected')
         })
 
-        // ラベル生成
         const bbox = pref.getBBox()
         const label = document.createElementNS("http://www.w3.org/2000/svg", "text")
 
@@ -125,15 +116,18 @@ fetch("./map-full.svg")
 
     const panZoom = svgPanZoom(svg, {
         zoomEnabled: true,
+        panEnabled: true,
         controlIconsEnabled: false,
+        dblClickZoomEnabled: false,
+        mouseWheelZoomEnabled: true,
+        pinchZoomEnabled: true,  // ← 明示的にON
         fit: true,
         center: true,
         minZoom: 1,
-        maxZoom: 20,
-        dblClickZoomEnabled: false
+        maxZoom: 20
     })
 
-    // ズーム量でラベル表示
+    // ズーム時ラベル表示
     svg.addEventListener("zoom", function() {
         if (panZoom.getZoom() > 3) {
             svg.classList.add("show-labels")
@@ -142,7 +136,6 @@ fetch("./map-full.svg")
         }
     })
 
-    // 全解除
     document.getElementById('resetBtn').addEventListener('click', () => {
         prefs.forEach(p => p.classList.remove('selected'))
     })
