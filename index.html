@@ -42,19 +42,6 @@ svg{
   fill:red;
 }
 
-.pref-label{
-  font-size:10px;
-  pointer-events:none;
-  fill:#000;
-  user-select:none;
-}
-
-@media (max-width:768px){
-  .pref-label{
-    font-size:14px;
-  }
-}
-
 button{
   margin:10px;
   padding:10px 20px;
@@ -65,20 +52,17 @@ button{
 
 <body>
 
-<h1>はいせんほにのかい</h1>
+<h1>都道府県マップ</h1>
 <div id="map-container"></div>
 <button id="resetBtn">全て解除</button>
 
 <script>
 const container = document.getElementById("map-container");
 
-// ===== 自動SVG切替 =====
 function getSVGFile(){
-  if(window.innerWidth <= 768){
-    return "map-mobile.svg";
-  } else {
-    return "map-full.svg";
-  }
+  return window.innerWidth <= 768
+    ? "map-mobile.svg"
+    : "map-full.svg";
 }
 
 let scale = 1;
@@ -104,28 +88,10 @@ function loadMap(){
     const prefs = g.querySelectorAll(".prefecture");
 
     prefs.forEach(pref=>{
-
-      const titleTag = pref.querySelector("title");
-      if(!titleTag) return;
-
-      const name = titleTag.textContent.split("/")[0].trim();
-
       pref.addEventListener("click",()=>{
         if(isPinching) return;
         pref.classList.toggle("active");
       });
-
-      const bbox = pref.getBBox();
-
-      const label = document.createElementNS("http://www.w3.org/2000/svg","text");
-      label.setAttribute("x", bbox.x + bbox.width/2);
-      label.setAttribute("y", bbox.y + bbox.height/2);
-      label.setAttribute("text-anchor","middle");
-      label.setAttribute("dominant-baseline","middle");
-      label.setAttribute("class","pref-label");
-
-      label.textContent = name;
-      g.appendChild(label);
     });
 
     // ===== ピンチズーム =====
@@ -169,14 +135,12 @@ function loadMap(){
 
 loadMap();
 
-// ===== 画面サイズ変更時も再読み込み =====
 window.addEventListener("resize",()=>{
   container.innerHTML="";
   scale = 1;
   loadMap();
 });
 
-// ===== 全解除 =====
 document.getElementById("resetBtn").addEventListener("click",()=>{
   document.querySelectorAll(".prefecture").forEach(p=>{
     p.classList.remove("active");
