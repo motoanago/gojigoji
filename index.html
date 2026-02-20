@@ -1,71 +1,3 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>日本地図イベント管理</title>
-
-<style>
-body{
-    margin:0;
-    font-family:sans-serif;
-    background:#f5f5f5;
-}
-
-h3{
-    text-align:center;
-    margin:10px 0;
-}
-
-#map-wrapper{
-    width:100%;
-    height:75vh;
-    overflow:hidden;
-}
-
-#map-wrapper svg{
-    width:100%;
-    height:100%;
-    touch-action:manipulation;
-}
-
-.prefecture{
-    fill:#ffffff;
-    stroke:#333;
-    stroke-width:0.5;
-}
-
-.selected{
-    fill:#e60012 !important;
-}
-
-.pref-label{
-    font-size:18px;
-    font-weight:bold;
-    text-anchor:middle;
-    pointer-events:none;
-    fill:#e60012;
-}
-
-#resetBtn{
-    display:block;
-    margin:20px auto;
-    padding:12px 25px;
-    font-size:16px;
-    border:none;
-    background:#333;
-    color:#fff;
-    border-radius:20px;
-}
-</style>
-</head>
-
-<body>
-
-<h3>はいせんほにのかい</h3>
-<div id="map-wrapper"></div>
-<button id="resetBtn">すべて解除</button>
-
 <script>
 const isMobile = /iPhone|Android.+Mobile/.test(navigator.userAgent)
 const mapFile = isMobile ? "./map-mobile.svg" : "./map-full.svg"
@@ -88,7 +20,6 @@ fetch(mapFile)
 
     const svg = document.querySelector("svg")
 
-    // viewBox補正
     if (!svg.getAttribute("viewBox")) {
         const bbox = svg.getBBox()
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
@@ -133,14 +64,15 @@ fetch(mapFile)
 
     prefs.forEach(pref=>{
 
-        // ===== 県名取得（titleから）=====
         const title = pref.querySelector("title")
         let label = null
 
         if(title){
             const name = title.textContent.split("/")[0].trim()
+
             const bbox = pref.getBBox()
 
+            // ★ 重要：svg直下に追加（gの外）
             label = document.createElementNS("http://www.w3.org/2000/svg","text")
             label.setAttribute("x", bbox.x + bbox.width/2)
             label.setAttribute("y", bbox.y + bbox.height/2)
@@ -148,13 +80,13 @@ fetch(mapFile)
             label.setAttribute("visibility","hidden")
             label.textContent = name
 
-            g.appendChild(label)
+            svg.appendChild(label)
         }
 
-        // ===== スマホ =====
         if(isTouchDevice){
 
             pref.addEventListener("touchend", function(e){
+
                 if(isPinching && isZoomIn && label){
                     label.setAttribute("visibility","visible")
                     return
@@ -166,9 +98,7 @@ fetch(mapFile)
 
             }, {passive:false})
 
-        }
-        // ===== PC =====
-        else{
+        } else {
             pref.addEventListener("click", function(){
                 this.classList.toggle("selected")
             })
@@ -176,16 +106,12 @@ fetch(mapFile)
 
     })
 
-    // ===== 解除ボタン =====
     document.getElementById("resetBtn").addEventListener("click",()=>{
         prefs.forEach(p=>p.classList.remove("selected"))
-        g.querySelectorAll(".pref-label").forEach(l=>{
+        svg.querySelectorAll(".pref-label").forEach(l=>{
             l.setAttribute("visibility","hidden")
         })
     })
 
 })
 </script>
-
-</body>
-</html>
