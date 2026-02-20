@@ -62,33 +62,35 @@ fetch("./map-mobile.svg")
 
     document.getElementById("map-wrapper").innerHTML = svgData
     const svg = document.querySelector("svg")
-
-    if (!svg.getAttribute("viewBox")) {
-        const bbox = svg.getBBox()
-        svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
-    }
+    const wrapper = document.getElementById("map-wrapper")
 
     const prefs = svg.querySelectorAll('.prefecture')
 
-    // ===== 県名ラベル生成 =====
+    // ===== 県名ラベル生成（ズレない方式）=====
     prefs.forEach(pref=>{
 
         const title = pref.querySelector("title")
         if(!title) return
 
         const name = title.textContent.split("/")[0].trim()
-        const bbox = pref.getBBox()
+
+        // 画面上の座標を取得
+        const rect = pref.getBoundingClientRect()
+        const wrapperRect = wrapper.getBoundingClientRect()
+
+        const centerX = rect.left - wrapperRect.left + rect.width/2
+        const centerY = rect.top - wrapperRect.top + rect.height/2
 
         const label = document.createElementNS("http://www.w3.org/2000/svg","text")
-        label.setAttribute("x", bbox.x + bbox.width/2)
-        label.setAttribute("y", bbox.y + bbox.height/2)
+        label.setAttribute("x", centerX)
+        label.setAttribute("y", centerY)
         label.setAttribute("class","pref-label")
         label.setAttribute("visibility","hidden")
         label.textContent = name
 
         svg.appendChild(label)
 
-        // タップ選択（ピンチ中は無効）
+        // タップ選択
         pref.addEventListener("touchend", function(){
             if(isPinching) return
             this.classList.toggle("selected")
@@ -101,7 +103,6 @@ fetch("./map-mobile.svg")
         if(e.touches.length === 2){
             isPinching = true
 
-            // ピンチした瞬間に全県名表示
             svg.querySelectorAll(".pref-label")
                .forEach(l => l.setAttribute("visibility","visible"))
         }
