@@ -40,10 +40,11 @@ h3{
 }
 
 .pref-label{
-    font-size:12px;
+    font-size:18px;
+    font-weight:bold;
     text-anchor:middle;
     pointer-events:none;
-    fill:#000;
+    fill:#e60012;
 }
 
 #resetBtn{
@@ -61,7 +62,7 @@ h3{
 
 <body>
 
-<h3>イベント開催県を選択</h3>
+<h3>はいせんほにのかい</h3>
 <div id="map-wrapper"></div>
 <button id="resetBtn">すべて解除</button>
 
@@ -70,6 +71,14 @@ const isMobile = /iPhone|Android.+Mobile/.test(navigator.userAgent)
 const mapFile = isMobile ? "./map-mobile.svg" : "./map-full.svg"
 
 let isPinching = false
+let lastDistance = 0
+let isZoomIn = false
+
+function getDistance(touches){
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.sqrt(dx*dx + dy*dy)
+}
 
 fetch(mapFile)
 .then(res => res.text())
@@ -85,9 +94,8 @@ fetch(mapFile)
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
     }
 
-    // ===== SVG内部で左右反転 =====
+    // ===== 左右反転 =====
     const width = svg.viewBox.baseVal.width
-
     const g = document.createElementNS("http://www.w3.org/2000/svg","g")
     g.setAttribute("transform", `translate(${width},0) scale(-1,1)`)
 
@@ -95,58 +103,75 @@ fetch(mapFile)
         g.appendChild(svg.firstChild)
     }
     svg.appendChild(g)
-    // ============================
 
-    const prefs = document.querySelectorAll('.prefecture')
+    const prefs = g.querySelectorAll('.prefecture')
 
-    // ===== ピンチ判定 =====
+    // ===== ピンチ検出 =====
     document.addEventListener("touchstart", e=>{
-        if(e.touches.length > 1){
+        if(e.touches.length === 2){
             isPinching = true
+            lastDistance = getDistance(e.touches)
+        }
+    }, {passive:true})
+
+    document.addEventListener("touchmove", e=>{
+        if(e.touches.length === 2){
+            const distance = getDistance(e.touches)
+            isZoomIn = distance < lastDistance
+            lastDistance = distance
         }
     }, {passive:true})
 
     document.addEventListener("touchend", e=>{
         if(e.touches.length < 2){
             setTimeout(()=>{ isPinching = false },100)
+            lastDistance = 0
         }
     }, {passive:true})
-    // =====================
 
     const isTouchDevice = ('ontouchstart' in window)
 
     prefs.forEach(pref=>{
 
+        // ===== 県名取得（titleから）=====
+        const title = pref.querySelector("title")
+        let label = null
+
+        if(title){
+            const name = title.textContent.split("/")[0].trim()
+            const bbox = pref.getBBox()
+
+            label = document.createElementNS("http://www.w3.org/2000/svg","text")
+            label.setAttribute("x", bbox.x + bbox.width/2)
+            label.setAttribute("y", bbox.y + bbox.height/2)
+            label.setAttribute("class","pref-label")
+            label.setAttribute("visibility","hidden")
+            label.textContent = name
+
+            g.appendChild(label)
+        }
+
         // ===== スマホ =====
         if(isTouchDevice){
 
             pref.addEventListener("touchend", function(e){
-                if(isPinching) return
-                e.preventDefault()
-                this.classList.toggle("selected")
+                if(isPinching && isZoomIn && label){
+                    label.setAttribute("visibility","visible")
+                    return
+                }
+
+                if(!isPinching){
+                    this.classList.toggle("selected")
+                }
+
             }, {passive:false})
 
         }
         // ===== PC =====
         else{
-
             pref.addEventListener("click", function(){
                 this.classList.toggle("selected")
             })
-
-        }
-
-        // ===== 都道府県名表示（data-nameがある場合）=====
-        if(pref.dataset.name){
-            const bbox = pref.getBBox()
-            const label = document.createElementNS("http://www.w3.org/2000/svg","text")
-
-            label.setAttribute("x", bbox.x + bbox.width/2)
-            label.setAttribute("y", bbox.y + bbox.height/2)
-            label.setAttribute("class","pref-label")
-            label.textContent = pref.dataset.name
-
-            g.appendChild(label)
         }
 
     })
@@ -154,6 +179,9 @@ fetch(mapFile)
     // ===== 解除ボタン =====
     document.getElementById("resetBtn").addEventListener("click",()=>{
         prefs.forEach(p=>p.classList.remove("selected"))
+        g.querySelectorAll(".pref-label").forEach(l=>{
+            l.setAttribute("visibility","hidden")
+        })
     })
 
 })
