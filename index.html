@@ -15,7 +15,6 @@ body{
 
 h1{
   margin:10px 0;
-  transform: scaleX(-1);
 }
 
 #map-container{
@@ -29,7 +28,6 @@ h1{
 svg{
   width:100%;
   height:100%;
-  transform: scaleX(-1);
 }
 
 .prefecture{
@@ -53,7 +51,7 @@ button{
 
 <body>
 
-<h1>はいせんほにのかい</h1>
+<h1>都道府県マップ</h1>
 <div id="map-container"></div>
 <button id="resetBtn">全て解除</button>
 
@@ -72,6 +70,7 @@ let translateY = 0;
 let isPinching = false;
 let isDragging = false;
 let startX, startY;
+let svgWidth = 0;
 
 function loadMap(){
 
@@ -81,6 +80,13 @@ function loadMap(){
 
     container.innerHTML = data;
     const svg = container.querySelector("svg");
+
+    // viewBoxから幅取得
+    if(svg.viewBox.baseVal.width){
+      svgWidth = svg.viewBox.baseVal.width;
+    } else {
+      svgWidth = svg.getBBox().width;
+    }
 
     const g = document.createElementNS("http://www.w3.org/2000/svg","g");
 
@@ -100,7 +106,6 @@ function loadMap(){
 
     updateTransform(g);
 
-    // ===== ピンチズーム =====
     let lastDistance = 0;
 
     container.addEventListener("touchstart", e=>{
@@ -157,7 +162,6 @@ function loadMap(){
       }
     });
 
-    // ===== マウスドラッグ（PC）=====
     container.addEventListener("mousedown", e=>{
       if(scale<=1) return;
       isDragging = true;
@@ -172,18 +176,17 @@ function loadMap(){
       updateTransform(g);
     });
 
-    container.addEventListener("mouseup", ()=>{
-      isDragging=false;
-    });
-
-    container.addEventListener("mouseleave", ()=>{
-      isDragging=false;
-    });
+    container.addEventListener("mouseup", ()=>{ isDragging=false; });
+    container.addEventListener("mouseleave", ()=>{ isDragging=false; });
 
     function updateTransform(g){
       g.setAttribute(
         "transform",
-        `translate(${translateX},${translateY}) scale(${-scale},${scale})`
+        `
+        translate(${translateX},${translateY})
+        translate(${svgWidth * scale},0)
+        scale(${-scale},${scale})
+        `
       );
     }
 
@@ -215,5 +218,3 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
-
-
