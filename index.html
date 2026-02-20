@@ -23,6 +23,7 @@ h1{
   height:80vh;
   overflow:hidden;
   touch-action:none;
+  position:relative;
 }
 
 svg{
@@ -66,7 +67,11 @@ function getSVGFile(){
 }
 
 let scale = 1;
+let translateX = 0;
+let translateY = 0;
 let isPinching = false;
+let isDragging = false;
+let startX, startY;
 
 function loadMap(){
 
@@ -75,7 +80,6 @@ function loadMap(){
   .then(data=>{
 
     container.innerHTML = data;
-
     const svg = container.querySelector("svg");
 
     const g = document.createElementNS("http://www.w3.org/2000/svg","g");
@@ -89,10 +93,12 @@ function loadMap(){
 
     prefs.forEach(pref=>{
       pref.addEventListener("click",()=>{
-        if(isPinching) return;
+        if(isPinching || isDragging) return;
         pref.classList.toggle("active");
       });
     });
+
+    updateTransform(g);
 
     // ===== ピンチズーム =====
     let lastDistance = 0;
@@ -102,27 +108,84 @@ function loadMap(){
         isPinching = true;
         lastDistance = getDistance(e.touches);
       }
+      else if(e.touches.length===1){
+        isDragging = true;
+        startX = e.touches[0].clientX - translateX;
+        startY = e.touches[0].clientY - translateY;
+      }
     });
 
     container.addEventListener("touchmove", e=>{
+
       if(e.touches.length===2){
+        e.preventDefault();
+
         const distance = getDistance(e.touches);
         const diff = distance - lastDistance;
 
-        scale += diff * 0.005;
-        scale = Math.max(1, Math.min(scale,5));
+        let newScale = scale + diff * 0.005;
+        newScale = Math.max(1, Math.min(newScale,5));
 
-        g.setAttribute("transform",`scale(${scale})`);
+        const rect = container.getBoundingClientRect();
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX)/2 - rect.left;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY)/2 - rect.top;
+
+        translateX -= (centerX - translateX) * (newScale/scale - 1);
+        translateY -= (centerY - translateY) * (newScale/scale - 1);
+
+        scale = newScale;
+
+        updateTransform(g);
 
         lastDistance = distance;
       }
+
+      else if(e.touches.length===1 && isDragging && scale>1){
+        translateX = e.touches[0].clientX - startX;
+        translateY = e.touches[0].clientY - startY;
+        updateTransform(g);
+      }
+
     });
 
     container.addEventListener("touchend", e=>{
       if(e.touches.length<2){
         setTimeout(()=>{isPinching=false},100);
       }
+      if(e.touches.length===0){
+        isDragging=false;
+      }
     });
+
+    // ===== マウスドラッグ（PC）=====
+    container.addEventListener("mousedown", e=>{
+      if(scale<=1) return;
+      isDragging = true;
+      startX = e.clientX - translateX;
+      startY = e.clientY - translateY;
+    });
+
+    container.addEventListener("mousemove", e=>{
+      if(!isDragging) return;
+      translateX = e.clientX - startX;
+      translateY = e.clientY - startY;
+      updateTransform(g);
+    });
+
+    container.addEventListener("mouseup", ()=>{
+      isDragging=false;
+    });
+
+    container.addEventListener("mouseleave", ()=>{
+      isDragging=false;
+    });
+
+    function updateTransform(g){
+      g.setAttribute(
+        "transform",
+        `translate(${translateX},${translateY}) scale(${scale})`
+      );
+    }
 
     function getDistance(touches){
       const dx = touches[0].clientX - touches[1].clientX;
@@ -137,7 +200,9 @@ loadMap();
 
 window.addEventListener("resize",()=>{
   container.innerHTML="";
-  scale = 1;
+  scale=1;
+  translateX=0;
+  translateY=0;
   loadMap();
 });
 
