@@ -33,7 +33,6 @@ body{
     fill:#e60012 !important;
 }
 
-/* 黒文字 */
 .pref-label{
     font-size:12px;
     font-weight:bold;
@@ -65,7 +64,6 @@ fetch("./map-mobile.svg")
     document.getElementById("map-wrapper").innerHTML = svgData
     const svg = document.querySelector("svg")
 
-    // viewBoxが無い場合のみ設定
     if (!svg.getAttribute("viewBox")) {
         const bbox = svg.getBBox()
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
@@ -73,33 +71,36 @@ fetch("./map-mobile.svg")
 
     const prefs = svg.querySelectorAll('.prefecture')
 
-    // ===== ラベルをSVG内部座標で作成 =====
-    prefs.forEach(pref=>{
+    // ★ 描画完了後にラベル生成
+    requestAnimationFrame(() => {
 
-        const title = pref.querySelector("title")
-        if(!title) return
+        prefs.forEach(pref=>{
 
-        const name = title.textContent.split("/")[0].trim()
-        const bbox = pref.getBBox()
+            const title = pref.querySelector("title")
+            if(!title) return
 
-        const label = document.createElementNS("http://www.w3.org/2000/svg","text")
-        label.setAttribute("x", bbox.x + bbox.width/2)
-        label.setAttribute("y", bbox.y + bbox.height/2)
-        label.setAttribute("class","pref-label")
-        label.setAttribute("visibility","hidden")
-        label.textContent = name
+            const name = title.textContent.split("/")[0].trim()
+            const bbox = pref.getBBox()
 
-        svg.appendChild(label)
+            const label = document.createElementNS("http://www.w3.org/2000/svg","text")
+            label.setAttribute("x", bbox.x + bbox.width/2)
+            label.setAttribute("y", bbox.y + bbox.height/2)
+            label.setAttribute("class","pref-label")
+            label.setAttribute("visibility","hidden")
+            label.textContent = name
 
-        // タップ選択
-        pref.addEventListener("touchend", function(){
-            if(isPinching) return
-            this.classList.toggle("selected")
+            svg.appendChild(label)
+
+            pref.addEventListener("touchend", function(){
+                if(isPinching) return
+                this.classList.toggle("selected")
+            })
+
         })
 
     })
 
-    // ===== ピンチ検出（表示だけ制御）=====
+    // ピンチで表示
     svg.addEventListener("touchstart", function(e){
         if(e.touches.length === 2){
             isPinching = true
@@ -112,7 +113,6 @@ fetch("./map-mobile.svg")
         if(e.touches.length < 2){
             isPinching = false
 
-            // ズームが100%近くなら非表示
             if(window.visualViewport.scale <= 1.05){
                 svg.querySelectorAll(".pref-label")
                    .forEach(l => l.setAttribute("visibility","hidden"))
@@ -120,7 +120,6 @@ fetch("./map-mobile.svg")
         }
     })
 
-    // ===== リセット =====
     document.getElementById("resetBtn").addEventListener("click",()=>{
         prefs.forEach(p=>p.classList.remove("selected"))
         svg.querySelectorAll(".pref-label")
