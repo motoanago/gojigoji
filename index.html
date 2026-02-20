@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>スマホ用 日本地図</title>
 
 <style>
@@ -20,7 +20,6 @@ body{
 #map-wrapper svg{
     width:100%;
     height:100%;
-    touch-action:none;
 }
 
 .prefecture{
@@ -55,15 +54,8 @@ button{
 <button id="resetBtn">リセット</button>
 
 <script>
-let lastDistance = 0
+let isPinching = false
 
-function getDistance(touches){
-    const dx = touches[0].clientX - touches[1].clientX
-    const dy = touches[0].clientY - touches[1].clientY
-    return Math.sqrt(dx*dx + dy*dy)
-}
-
-// ★ map-mobile.svg 固定
 fetch("./map-mobile.svg")
 .then(res => res.text())
 .then(svgData => {
@@ -71,7 +63,6 @@ fetch("./map-mobile.svg")
     document.getElementById("map-wrapper").innerHTML = svgData
     const svg = document.querySelector("svg")
 
-    // viewBox補正（ない場合）
     if (!svg.getAttribute("viewBox")) {
         const bbox = svg.getBBox()
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
@@ -79,7 +70,7 @@ fetch("./map-mobile.svg")
 
     const prefs = svg.querySelectorAll('.prefecture')
 
-    // ===== ラベル生成 =====
+    // ===== 県名ラベル生成 =====
     prefs.forEach(pref=>{
 
         const title = pref.querySelector("title")
@@ -97,36 +88,32 @@ fetch("./map-mobile.svg")
 
         svg.appendChild(label)
 
-        // タップで選択
+        // タップ選択（ピンチ中は無効）
         pref.addEventListener("touchend", function(){
+            if(isPinching) return
             this.classList.toggle("selected")
         })
 
     })
 
-    // ===== ピンチイン検出 =====
-    svg.addEventListener("touchmove", function(e){
+    // ===== ピンチ検出 =====
+    svg.addEventListener("touchstart", function(e){
         if(e.touches.length === 2){
+            isPinching = true
 
-            const distance = getDistance(e.touches)
-
-            if(lastDistance && distance < lastDistance){
-                // ピンチインで全県名表示
-                svg.querySelectorAll(".pref-label")
-                   .forEach(l => l.setAttribute("visibility","visible"))
-            }
-
-            lastDistance = distance
+            // ピンチした瞬間に全県名表示
+            svg.querySelectorAll(".pref-label")
+               .forEach(l => l.setAttribute("visibility","visible"))
         }
     }, {passive:true})
 
     svg.addEventListener("touchend", function(e){
         if(e.touches.length < 2){
-            lastDistance = 0
+            setTimeout(()=>{ isPinching = false }, 100)
         }
     })
 
-    // リセット
+    // ===== リセット =====
     document.getElementById("resetBtn").addEventListener("click",()=>{
         prefs.forEach(p=>p.classList.remove("selected"))
         svg.querySelectorAll(".pref-label")
