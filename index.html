@@ -10,11 +10,14 @@ body{
     margin:0;
     background:#f5f5f5;
     font-family:sans-serif;
+    overflow:hidden;
 }
 
 #map-wrapper{
     width:100%;
     height:80vh;
+    overflow:hidden;
+    touch-action:none;
 }
 
 #map-wrapper svg{
@@ -32,11 +35,10 @@ body{
     fill:#e60012 !important;
 }
 
-/* ★ 黒文字 */
 .pref-label{
     font-size:14px;
     font-weight:bold;
-    fill:#000000;
+    fill:#000;
     text-anchor:middle;
     pointer-events:none;
 }
@@ -55,7 +57,15 @@ button{
 <button id="resetBtn">リセット</button>
 
 <script>
+let scale = 1
+let startDistance = 0
 let isPinching = false
+
+function getDistance(touches){
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.sqrt(dx*dx + dy*dy)
+}
 
 fetch("./map-mobile.svg")
 .then(res => res.text())
@@ -64,7 +74,6 @@ fetch("./map-mobile.svg")
     document.getElementById("map-wrapper").innerHTML = svgData
     const svg = document.querySelector("svg")
 
-    // viewBoxがない場合のみ設定
     if (!svg.getAttribute("viewBox")) {
         const bbox = svg.getBBox()
         svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
@@ -72,7 +81,7 @@ fetch("./map-mobile.svg")
 
     const prefs = svg.querySelectorAll('.prefecture')
 
-    // ===== ラベル生成（SVG内部座標で安定）=====
+    // ===== ラベル生成（内部座標使用）=====
     prefs.forEach(pref=>{
 
         const title = pref.querySelector("title")
@@ -90,7 +99,6 @@ fetch("./map-mobile.svg")
 
         svg.appendChild(label)
 
-        // タップ選択
         pref.addEventListener("touchend", function(){
             if(isPinching) return
             this.classList.toggle("selected")
@@ -98,23 +106,59 @@ fetch("./map-mobile.svg")
 
     })
 
-    // ===== ピンチした瞬間に表示 =====
+    // ===== ピンチ開始 =====
     svg.addEventListener("touchstart", function(e){
         if(e.touches.length === 2){
             isPinching = true
-            svg.querySelectorAll(".pref-label")
-               .forEach(l => l.setAttribute("visibility","visible"))
+            startDistance = getDistance(e.touches)
         }
-    }, {passive:true})
+    })
 
+    // ===== ピンチ中 =====
+    svg.addEventListener("touchmove", function(e){
+
+        if(e.touches.length === 2){
+
+            const currentDistance = getDistance(e.touches)
+            const zoom = currentDistance / startDistance
+
+            scale = Math.min(Math.max(1, zoom), 4)
+
+            svg.style.transform = `scale(${scale})`
+            svg.style.transformOrigin = "center center"
+
+            // ★ 1より大きくなったら表示
+            if(scale > 1.05){
+                svg.querySelectorAll(".pref-label")
+                   .forEach(l => l.setAttribute("visibility","visible"))
+            }else{
+                svg.querySelectorAll(".pref-label")
+                   .forEach(l => l.setAttribute("visibility","hidden"))
+            }
+
+        }
+
+    }, {passive:false})
+
+    // ===== ピンチ終了 =====
     svg.addEventListener("touchend", function(e){
         if(e.touches.length < 2){
-            setTimeout(()=>{ isPinching = false },100)
+            isPinching = false
+
+            // 100%に近ければ戻す
+            if(scale <= 1.05){
+                scale = 1
+                svg.style.transform = "scale(1)"
+                svg.querySelectorAll(".pref-label")
+                   .forEach(l => l.setAttribute("visibility","hidden"))
+            }
         }
     })
 
     // ===== リセット =====
     document.getElementById("resetBtn").addEventListener("click",()=>{
+        scale = 1
+        svg.style.transform = "scale(1)"
         prefs.forEach(p=>p.classList.remove("selected"))
         svg.querySelectorAll(".pref-label")
            .forEach(l=>l.setAttribute("visibility","hidden"))
