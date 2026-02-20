@@ -53,7 +53,7 @@ button{
 
 <body>
 
-<h1>はいせんほにのかいか</h1>
+<h1>はいせんほにのかい</h1>
 <div id="map-container"></div>
 <button id="resetBtn">全て解除</button>
 
@@ -183,7 +183,7 @@ function loadMap(){
     function updateTransform(g){
       g.setAttribute(
         "transform",
-        `translate(${translateX},${translateY}) scale(${scale})`
+        `translate(${translateX},${translateY}) scale(${-scale},${scale})`
       );
     }
 
@@ -215,4 +215,5 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
+
 
