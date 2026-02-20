@@ -15,22 +15,13 @@ body{
 #map-wrapper{
     width:100vw;
     height:75vh;
+    overflow:hidden;
 }
 
 #map-wrapper svg{
     width:100%;
     height:100%;
     display:block;
-}
-
-.prefecture{
-    fill:#ffffff;
-    stroke:#333;
-    stroke-width:0.5;
-}
-
-.selected{
-    fill:#e60012 !important;
 }
 
 .pref-label{
@@ -41,10 +32,8 @@ body{
     pointer-events:none;
 }
 
-button{
-    display:block;
-    margin:20px auto;
-    padding:12px 24px;
+.selected{
+    fill:#e60012 !important;
 }
 </style>
 </head>
@@ -52,27 +41,20 @@ button{
 <body>
 
 <div id="map-wrapper"></div>
-<button id="resetBtn">リセット</button>
 
 <script>
+
 let isPinching = false
 
 fetch("./map-mobile.svg")
-.then(res => res.text())
-.then(svgData => {
+.then(res=>res.text())
+.then(svgData=>{
 
     document.getElementById("map-wrapper").innerHTML = svgData
     const svg = document.querySelector("svg")
+    const prefs = svg.querySelectorAll(".prefecture")
 
-    if (!svg.getAttribute("viewBox")) {
-        const bbox = svg.getBBox()
-        svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`)
-    }
-
-    const prefs = svg.querySelectorAll('.prefecture')
-
-    // ★ 描画完了後にラベル生成
-    requestAnimationFrame(() => {
+    requestAnimationFrame(()=>{
 
         prefs.forEach(pref=>{
 
@@ -80,50 +62,47 @@ fetch("./map-mobile.svg")
             if(!title) return
 
             const name = title.textContent.split("/")[0].trim()
+
             const bbox = pref.getBBox()
+            const matrix = pref.getScreenCTM()
+
+            const point = svg.createSVGPoint()
+            point.x = bbox.x + bbox.width/2
+            point.y = bbox.y + bbox.height/2
+
+            const globalPoint = point.matrixTransform(matrix)
 
             const label = document.createElementNS("http://www.w3.org/2000/svg","text")
-            label.setAttribute("x", bbox.x + bbox.width/2)
-            label.setAttribute("y", bbox.y + bbox.height/2)
+            label.setAttribute("x", globalPoint.x)
+            label.setAttribute("y", globalPoint.y)
             label.setAttribute("class","pref-label")
             label.setAttribute("visibility","hidden")
             label.textContent = name
 
             svg.appendChild(label)
 
-            pref.addEventListener("touchend", function(){
-                if(isPinching) return
-                this.classList.toggle("selected")
-            })
-
         })
 
     })
 
-    // ピンチで表示
-    svg.addEventListener("touchstart", function(e){
+    // ピンチ開始 → 表示
+    svg.addEventListener("touchstart", e=>{
         if(e.touches.length === 2){
             isPinching = true
             svg.querySelectorAll(".pref-label")
-               .forEach(l => l.setAttribute("visibility","visible"))
+               .forEach(l=>l.setAttribute("visibility","visible"))
         }
     }, {passive:true})
 
-    svg.addEventListener("touchend", function(e){
+    // ピンチ終了 → 100%なら非表示
+    svg.addEventListener("touchend", e=>{
         if(e.touches.length < 2){
             isPinching = false
-
             if(window.visualViewport.scale <= 1.05){
                 svg.querySelectorAll(".pref-label")
-                   .forEach(l => l.setAttribute("visibility","hidden"))
+                   .forEach(l=>l.setAttribute("visibility","hidden"))
             }
         }
-    })
-
-    document.getElementById("resetBtn").addEventListener("click",()=>{
-        prefs.forEach(p=>p.classList.remove("selected"))
-        svg.querySelectorAll(".pref-label")
-           .forEach(l=>l.setAttribute("visibility","hidden"))
     })
 
 })
