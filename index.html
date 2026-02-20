@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 <title>日本地図</title>
 
 <style>
@@ -25,16 +25,13 @@ body{
 }
 
 .pref-label{
-    font-size:12px;
+    font-size:10px;
     font-weight:bold;
     fill:#000;
     text-anchor:middle;
     pointer-events:none;
 }
 
-.selected{
-    fill:#e60012 !important;
-}
 </style>
 </head>
 
@@ -44,14 +41,14 @@ body{
 
 <script>
 
-let isPinching = false
-
 fetch("./map-mobile.svg")
 .then(res=>res.text())
 .then(svgData=>{
 
     document.getElementById("map-wrapper").innerHTML = svgData
+
     const svg = document.querySelector("svg")
+    const prefGroup = svg.querySelector(".prefectures")
     const prefs = svg.querySelectorAll(".prefecture")
 
     requestAnimationFrame(()=>{
@@ -62,46 +59,35 @@ fetch("./map-mobile.svg")
             if(!title) return
 
             const name = title.textContent.split("/")[0].trim()
-
             const bbox = pref.getBBox()
-            const matrix = pref.getScreenCTM()
-
-            const point = svg.createSVGPoint()
-            point.x = bbox.x + bbox.width/2
-            point.y = bbox.y + bbox.height/2
-
-            const globalPoint = point.matrixTransform(matrix)
 
             const label = document.createElementNS("http://www.w3.org/2000/svg","text")
-            label.setAttribute("x", globalPoint.x)
-            label.setAttribute("y", globalPoint.y)
+            label.setAttribute("x", bbox.x + bbox.width/2)
+            label.setAttribute("y", bbox.y + bbox.height/2)
             label.setAttribute("class","pref-label")
             label.setAttribute("visibility","hidden")
             label.textContent = name
 
-            svg.appendChild(label)
+            // ★ 同じグループに入れるのが重要
+            prefGroup.appendChild(label)
 
         })
 
     })
 
-    // ピンチ開始 → 表示
+    // ピンチで表示
     svg.addEventListener("touchstart", e=>{
         if(e.touches.length === 2){
-            isPinching = true
             svg.querySelectorAll(".pref-label")
                .forEach(l=>l.setAttribute("visibility","visible"))
         }
     }, {passive:true})
 
-    // ピンチ終了 → 100%なら非表示
-    svg.addEventListener("touchend", e=>{
-        if(e.touches.length < 2){
-            isPinching = false
-            if(window.visualViewport.scale <= 1.05){
-                svg.querySelectorAll(".pref-label")
-                   .forEach(l=>l.setAttribute("visibility","hidden"))
-            }
+    // 100%なら非表示
+    svg.addEventListener("touchend", ()=>{
+        if(window.visualViewport.scale <= 1.05){
+            svg.querySelectorAll(".pref-label")
+               .forEach(l=>l.setAttribute("visibility","hidden"))
         }
     })
 
