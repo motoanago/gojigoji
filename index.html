@@ -2,96 +2,186 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-<title>日本地図</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>都道府県マップ</title>
 
 <style>
 body{
-    margin:0;
-    background:#f5f5f5;
-    font-family:sans-serif;
+  margin:0;
+  font-family:sans-serif;
+  text-align:center;
+  background:#f5f5f5;
 }
 
-#map-wrapper{
-    width:100vw;
-    height:75vh;
-    overflow:hidden;
+h1{
+  margin:10px 0;
+  transform: scaleX(-1);
 }
 
-#map-wrapper svg{
-    width:100%;
-    height:100%;
-    display:block;
+#map-container{
+  width:100%;
+  height:80vh;
+  overflow:hidden;
+  touch-action:none;
+}
+
+svg{
+  width:100%;
+  height:100%;
+  transform: scaleX(-1);
+}
+
+.prefecture{
+  fill:white;
+  stroke:#333;
+  stroke-width:1;
+  cursor:pointer;
+}
+
+.prefecture.active{
+  fill:red;
 }
 
 .pref-label{
-    font-size:10px;
-    font-weight:bold;
-    fill:#000;
-    text-anchor:middle;
-    pointer-events:none;
+  font-size:10px;
+  pointer-events:none;
+  fill:#000;
+  user-select:none;
 }
 
+@media (max-width:768px){
+  .pref-label{
+    font-size:14px;
+  }
+}
+
+button{
+  margin:10px;
+  padding:10px 20px;
+  font-size:16px;
+}
 </style>
 </head>
 
 <body>
 
-<div id="map-wrapper"></div>
+<h1>はいせんほにのかい</h1>
+<div id="map-container"></div>
+<button id="resetBtn">全て解除</button>
 
 <script>
+const container = document.getElementById("map-container");
 
-fetch("./map-mobile.svg")
-.then(res=>res.text())
-.then(svgData=>{
+// ===== 自動SVG切替 =====
+function getSVGFile(){
+  if(window.innerWidth <= 768){
+    return "map-mobile.svg";
+  } else {
+    return "map-full.svg";
+  }
+}
 
-    document.getElementById("map-wrapper").innerHTML = svgData
+let scale = 1;
+let isPinching = false;
 
-    const svg = document.querySelector("svg")
-    const prefGroup = svg.querySelector(".prefectures")
-    const prefs = svg.querySelectorAll(".prefecture")
+function loadMap(){
 
-    requestAnimationFrame(()=>{
+  fetch(getSVGFile())
+  .then(res=>res.text())
+  .then(data=>{
 
-        prefs.forEach(pref=>{
+    container.innerHTML = data;
 
-            const title = pref.querySelector("title")
-            if(!title) return
+    const svg = container.querySelector("svg");
 
-            const name = title.textContent.split("/")[0].trim()
-            const bbox = pref.getBBox()
+    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
 
-            const label = document.createElementNS("http://www.w3.org/2000/svg","text")
-            label.setAttribute("x", bbox.x + bbox.width/2)
-            label.setAttribute("y", bbox.y + bbox.height/2)
-            label.setAttribute("class","pref-label")
-            label.setAttribute("visibility","hidden")
-            label.textContent = name
+    while(svg.firstChild){
+      g.appendChild(svg.firstChild);
+    }
+    svg.appendChild(g);
 
-            // ★ 同じグループに入れるのが重要
-            prefGroup.appendChild(label)
+    const prefs = g.querySelectorAll(".prefecture");
 
-        })
+    prefs.forEach(pref=>{
 
-    })
+      const titleTag = pref.querySelector("title");
+      if(!titleTag) return;
 
-    // ピンチで表示
-    svg.addEventListener("touchstart", e=>{
-        if(e.touches.length === 2){
-            svg.querySelectorAll(".pref-label")
-               .forEach(l=>l.setAttribute("visibility","visible"))
-        }
-    }, {passive:true})
+      const name = titleTag.textContent.split("/")[0].trim();
 
-    // 100%なら非表示
-    svg.addEventListener("touchend", ()=>{
-        if(window.visualViewport.scale <= 1.05){
-            svg.querySelectorAll(".pref-label")
-               .forEach(l=>l.setAttribute("visibility","hidden"))
-        }
-    })
+      pref.addEventListener("click",()=>{
+        if(isPinching) return;
+        pref.classList.toggle("active");
+      });
 
-})
+      const bbox = pref.getBBox();
+
+      const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+      label.setAttribute("x", bbox.x + bbox.width/2);
+      label.setAttribute("y", bbox.y + bbox.height/2);
+      label.setAttribute("text-anchor","middle");
+      label.setAttribute("dominant-baseline","middle");
+      label.setAttribute("class","pref-label");
+
+      label.textContent = name;
+      g.appendChild(label);
+    });
+
+    // ===== ピンチズーム =====
+    let lastDistance = 0;
+
+    container.addEventListener("touchstart", e=>{
+      if(e.touches.length===2){
+        isPinching = true;
+        lastDistance = getDistance(e.touches);
+      }
+    });
+
+    container.addEventListener("touchmove", e=>{
+      if(e.touches.length===2){
+        const distance = getDistance(e.touches);
+        const diff = distance - lastDistance;
+
+        scale += diff * 0.005;
+        scale = Math.max(1, Math.min(scale,5));
+
+        g.setAttribute("transform",`scale(${scale})`);
+
+        lastDistance = distance;
+      }
+    });
+
+    container.addEventListener("touchend", e=>{
+      if(e.touches.length<2){
+        setTimeout(()=>{isPinching=false},100);
+      }
+    });
+
+    function getDistance(touches){
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx*dx+dy*dy);
+    }
+
+  });
+}
+
+loadMap();
+
+// ===== 画面サイズ変更時も再読み込み =====
+window.addEventListener("resize",()=>{
+  container.innerHTML="";
+  scale = 1;
+  loadMap();
+});
+
+// ===== 全解除 =====
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  document.querySelectorAll(".prefecture").forEach(p=>{
+    p.classList.remove("active");
+  });
+});
 </script>
 
 </body>
