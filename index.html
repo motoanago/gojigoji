@@ -219,29 +219,25 @@ fetch(getSVGFile())
   function updateTransform(){
 
   const rect = container.getBoundingClientRect();
-
   const svgWidth  = rect.width;
   const svgHeight = rect.height;
 
   const contentWidth  = svgWidth  * scale;
   const contentHeight = svgHeight * scale;
 
-  // ---- 横方向制限 ----
-  if(contentWidth <= svgWidth){
-    translateX = 0; // 小さいときは中央固定
-  }else{
+  // ★ 拡大時だけ制限する
+  if(scale > 1){
+
+    // 横制限
     const minX = svgWidth - contentWidth;
     const maxX = 0;
     translateX = Math.min(maxX, Math.max(minX, translateX));
-  }
 
-  // ---- 縦方向制限 ----
-  if(contentHeight <= svgHeight){
-    translateY = 0;
-  }else{
+    // 縦制限
     const minY = svgHeight - contentHeight;
     const maxY = 0;
     translateY = Math.min(maxY, Math.max(minY, translateY));
+
   }
 
   g.setAttribute(
@@ -285,4 +281,5 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
+
 
