@@ -217,17 +217,45 @@ fetch(getSVGFile())
   container.addEventListener("mouseleave", ()=>{isDragging=false;});
 
   function updateTransform(){
-    g.setAttribute(
-      "transform",
-      `translate(${translateX},${translateY}) scale(${scale})`
-    );
 
-    // 文字サイズを拡大率に合わせる
-    const texts = g.querySelectorAll("text");
-    texts.forEach(t=>{
-      t.setAttribute("font-size", 14/scale);
-    });
+  const rect = container.getBoundingClientRect();
+
+  const svgWidth  = rect.width;
+  const svgHeight = rect.height;
+
+  const contentWidth  = svgWidth  * scale;
+  const contentHeight = svgHeight * scale;
+
+  // ---- 横方向制限 ----
+  if(contentWidth <= svgWidth){
+    translateX = 0; // 小さいときは中央固定
+  }else{
+    const minX = svgWidth - contentWidth;
+    const maxX = 0;
+    translateX = Math.min(maxX, Math.max(minX, translateX));
   }
+
+  // ---- 縦方向制限 ----
+  if(contentHeight <= svgHeight){
+    translateY = 0;
+  }else{
+    const minY = svgHeight - contentHeight;
+    const maxY = 0;
+    translateY = Math.min(maxY, Math.max(minY, translateY));
+  }
+
+  g.setAttribute(
+    "transform",
+    `translate(${translateX},${translateY}) scale(${scale})`
+  );
+
+  // 文字サイズ調整
+  const texts = g.querySelectorAll("text");
+  texts.forEach(t=>{
+    t.setAttribute("font-size", 14/scale);
+  });
+}
+
 
   function getDistance(touches){
     const dx = touches[0].clientX - touches[1].clientX;
@@ -257,3 +285,4 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
+
