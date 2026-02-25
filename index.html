@@ -30,11 +30,13 @@ svg{
   height:100%;
 }
 
+/* 県スタイル */
 .prefecture path{
   fill:white;
   stroke:#333;
   stroke-width:1;
   cursor:pointer;
+  pointer-events:all;
 }
 
 .prefecture.active path{
@@ -47,7 +49,7 @@ button{
   font-size:16px;
 }
 
-/* ▼▼ 追加：都道府県リスト ▼▼ */
+/* ▼ 都道府県リスト ▼ */
 
 #pref-list{
   display:flex;
@@ -80,8 +82,6 @@ button{
 <h1>あいかのにほんせいは</h1>
 <div id="map-container"></div>
 <button id="resetBtn">全て解除</button>
-
-<!-- ▼▼ 追加 ▼▼ -->
 <div id="pref-list"></div>
 
 <script>
@@ -116,33 +116,34 @@ function loadMap(){
     }
     svg.appendChild(g);
 
-    /* ▼ 都道府県取得方法変更（data-codeベース） */
     const prefs = g.querySelectorAll("g[data-code]");
-
     const listContainer = document.getElementById("pref-list");
     listContainer.innerHTML = "";
 
     prefs.forEach(pref=>{
+
+      pref.classList.add("prefecture");
 
       const titleTag = pref.querySelector("title");
       const name = titleTag
         ? titleTag.textContent.split("/")[0].trim()
         : "不明";
 
-      pref.classList.add("prefecture");
-
-      /* 地図クリック */
-      pref.addEventListener("click",()=>{
-        if(isPinching || isDragging) return;
-        pref.classList.toggle("active");
-        item.classList.toggle("active", pref.classList.contains("active"));
-      });
-
-      /* ▼ リスト生成 */
       const item = document.createElement("div");
       item.className = "pref-item";
       item.textContent = name;
 
+      /* ★ 重要：path単位でクリック取得 */
+      pref.querySelectorAll("path").forEach(path=>{
+        path.addEventListener("click",()=>{
+          if(isPinching || isDragging) return;
+
+          pref.classList.toggle("active");
+          item.classList.toggle("active", pref.classList.contains("active"));
+        });
+      });
+
+      /* リストクリック */
       item.addEventListener("click",()=>{
         pref.classList.toggle("active");
         item.classList.toggle("active");
@@ -186,9 +187,7 @@ function loadMap(){
         translateY -= (centerY - translateY) * (newScale/scale - 1);
 
         scale = newScale;
-
         updateTransform(g);
-
         lastDistance = distance;
       }
 
@@ -229,10 +228,7 @@ function loadMap(){
     function updateTransform(g){
       g.setAttribute(
         "transform",
-        `
-        translate(${translateX},${translateY})
-        scale(${scale})
-        `
+        `translate(${translateX},${translateY}) scale(${scale})`
       );
     }
 
