@@ -12,10 +12,7 @@ body{
   text-align:center;
   background:#f5f5f5;
 }
-
-h1{
-  margin:10px 0;
-}
+h1{ margin:10px 0; }
 
 #map-container{
   width:100%;
@@ -25,10 +22,7 @@ h1{
   position:relative;
 }
 
-svg{
-  width:100%;
-  height:100%;
-}
+svg{ width:100%; height:100%; }
 
 .prefecture{
   fill:white;
@@ -37,9 +31,7 @@ svg{
   cursor:pointer;
 }
 
-.prefecture.active{
-  fill:red;
-}
+.prefecture.active{ fill:red; }
 
 button{
   margin:10px;
@@ -69,7 +61,7 @@ let translateX = 0;
 let translateY = 0;
 let isPinching = false;
 let isDragging = false;
-let startX, startY;
+let startPoint = null;
 
 function loadMap(){
 
@@ -80,6 +72,13 @@ function loadMap(){
     container.innerHTML = data;
     const svg = container.querySelector("svg");
 
+    // viewBoxが無いSVG対策
+    if(!svg.hasAttribute("viewBox")){
+      const w = svg.getAttribute("width");
+      const h = svg.getAttribute("height");
+      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    }
+
     const g = document.createElementNS("http://www.w3.org/2000/svg","g");
 
     while(svg.firstChild){
@@ -89,7 +88,7 @@ function loadMap(){
 
     const prefs = g.querySelectorAll(".prefecture");
 
-    // ===== 都道府県名を追加（最初は非表示）=====
+    // ===== 都道府県名追加 =====
     prefs.forEach(pref => {
 
       const title = pref.querySelector("title");
@@ -115,7 +114,6 @@ function loadMap(){
       pref.appendChild(text);
     });
 
-    // タップで色変更
     prefs.forEach(pref=>{
       pref.addEventListener("click",()=>{
         if(isPinching || isDragging) return;
@@ -123,20 +121,32 @@ function loadMap(){
       });
     });
 
-    updateTransform(g);
+    updateTransform();
 
-    let lastDistance = 0;
+    let initialDistance = 0;
+    let initialScale = 1;
+
+    function getSVGPoint(clientX, clientY){
+      const pt = svg.createSVGPoint();
+      pt.x = clientX;
+      pt.y = clientY;
+      return pt.matrixTransform(svg.getScreenCTM().inverse());
+    }
 
     // ===== タッチ開始 =====
     container.addEventListener("touchstart", e=>{
+
       if(e.touches.length===2){
         isPinching = true;
-        lastDistance = getDistance(e.touches);
+        initialDistance = getDistance(e.touches);
+        initialScale = scale;
       }
       else if(e.touches.length===1){
         isDragging = true;
-        startX = e.touches[0].clientX - translateX;
-        startY = e.touches[0].clientY - translateY;
+        startPoint = getSVGPoint(
+          e.touches[0].clientX,
+          e.touches[0].clientY
+        );
       }
     });
 
@@ -146,69 +156,71 @@ function loadMap(){
       if(e.touches.length===2){
         e.preventDefault();
 
-        const distance = getDistance(e.touches);
-        const diff = distance - lastDistance;
-
-        let newScale = scale + diff * 0.005;
+        const newDistance = getDistance(e.touches);
+        let newScale = initialScale * (newDistance / initialDistance);
         newScale = Math.max(1, Math.min(newScale,5));
 
-        const rect = container.getBoundingClientRect();
-        const centerX = (e.touches[0].clientX + e.touches[1].clientX)/2 - rect.left;
-        const centerY = (e.touches[0].clientY + e.touches[1].clientY)/2 - rect.top;
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX)/2;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY)/2;
 
-        translateX -= (centerX - translateX) * (newScale/scale - 1);
-        translateY -= (centerY - translateY) * (newScale/scale - 1);
+        const svgPoint = getSVGPoint(centerX, centerY);
+
+        translateX = svgPoint.x - (svgPoint.x - translateX)*(newScale/scale);
+        translateY = svgPoint.y - (svgPoint.y - translateY)*(newScale/scale);
 
         scale = newScale;
-        updateTransform(g);
-
-        lastDistance = distance;
+        updateTransform();
       }
 
       else if(e.touches.length===1 && isDragging && scale>1){
-        translateX = e.touches[0].clientX - startX;
-        translateY = e.touches[0].clientY - startY;
-        updateTransform(g);
+
+        const movePoint = getSVGPoint(
+          e.touches[0].clientX,
+          e.touches[0].clientY
+        );
+
+        translateX += movePoint.x - startPoint.x;
+        translateY += movePoint.y - startPoint.y;
+
+        startPoint = movePoint;
+        updateTransform();
       }
 
     });
 
-    // ===== タッチ終了 =====
-    container.addEventListener("touchend", e=>{
-      if(e.touches.length<2){
-        setTimeout(()=>{isPinching=false},100);
-      }
-      if(e.touches.length===0){
-        isDragging=false;
-      }
+    container.addEventListener("touchend", ()=>{
+      isPinching=false;
+      isDragging=false;
     });
 
     // ===== マウス操作 =====
     container.addEventListener("mousedown", e=>{
       if(scale<=1) return;
       isDragging = true;
-      startX = e.clientX - translateX;
-      startY = e.clientY - translateY;
+      startPoint = getSVGPoint(e.clientX, e.clientY);
     });
 
     container.addEventListener("mousemove", e=>{
       if(!isDragging) return;
-      translateX = e.clientX - startX;
-      translateY = e.clientY - startY;
-      updateTransform(g);
+
+      const movePoint = getSVGPoint(e.clientX, e.clientY);
+
+      translateX += movePoint.x - startPoint.x;
+      translateY += movePoint.y - startPoint.y;
+
+      startPoint = movePoint;
+      updateTransform();
     });
 
     container.addEventListener("mouseup", ()=>{ isDragging=false; });
     container.addEventListener("mouseleave", ()=>{ isDragging=false; });
 
-    // ===== 変形処理 =====
-    function updateTransform(g){
+    function updateTransform(){
       g.setAttribute(
         "transform",
         `translate(${translateX},${translateY}) scale(${scale})`
       );
 
-      // ★ 拡大時のみ都道府県名表示
       const texts = g.querySelectorAll("text");
       texts.forEach(t=>{
         t.style.display = scale > 2 ? "block" : "none";
@@ -226,7 +238,6 @@ function loadMap(){
 
 loadMap();
 
-// 画面リサイズ時再読み込み
 window.addEventListener("resize",()=>{
   container.innerHTML="";
   scale=1;
@@ -235,7 +246,6 @@ window.addEventListener("resize",()=>{
   loadMap();
 });
 
-// 全解除ボタン
 document.getElementById("resetBtn").addEventListener("click",()=>{
   document.querySelectorAll(".prefecture").forEach(p=>{
     p.classList.remove("active");
