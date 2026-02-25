@@ -34,18 +34,27 @@ svg{
 .prefecture.active{
   fill:red;
 }
+
+text{
+  pointer-events:none;
+  fill:#000;
+  stroke:#fff;
+  stroke-width:3;
+  paint-order:stroke;
+  font-size:14px;
+}
 </style>
 </head>
 
 <body>
 
-<h1>いかのにほんせいは</h1>
+<h1>ああいかのにほんせいは</h1>
 <div id="map-container"></div>
 
 <script>
 const container = document.getElementById("map-container");
 
-let scale = 1;          // ★ 最小
+let scale = 1;          // ★ 1が最小
 let translateX = 0;
 let translateY = 0;
 
@@ -94,11 +103,6 @@ fetch("map-full.svg")
     text.setAttribute("y", bbox.y + bbox.height/2);
     text.setAttribute("text-anchor","middle");
     text.setAttribute("dominant-baseline","middle");
-    text.setAttribute("fill","#000");
-    text.setAttribute("stroke","#fff");
-    text.setAttribute("stroke-width","3");
-    text.setAttribute("paint-order","stroke");
-    text.setAttribute("pointer-events","none");
     text.textContent = name;
 
     pref.appendChild(text);
@@ -125,6 +129,7 @@ fetch("map-full.svg")
   // ===== タッチ移動 =====
   container.addEventListener("touchmove", e=>{
 
+    // ----- ピンチ拡大 -----
     if(e.touches.length===2){
 
       e.preventDefault();
@@ -148,6 +153,7 @@ fetch("map-full.svg")
       updateTransform();
     }
 
+    // ----- ドラッグ -----
     else if(e.touches.length===1 && isDragging){
 
       const dx = e.touches[0].clientX - startX;
@@ -198,12 +204,6 @@ function updateTransform(){
     "transform",
     `translate(${translateX},${translateY}) scale(${scale})`
   );
-
-  // 文字サイズ連動
-  const texts = g.querySelectorAll("text");
-  texts.forEach(t=>{
-    t.setAttribute("font-size", 14/scale);
-  });
 }
 
 function getDistance(touches){
