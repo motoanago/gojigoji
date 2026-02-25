@@ -184,8 +184,7 @@ function loadMap(){
         "transform",
         `
         translate(${translateX},${translateY})
-        translate(${svgWidth * scale},0)
-        scale(${-scale},${scale})
+        scale(${scale})
         `
       );
     }
@@ -218,4 +217,5 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
+
 
