@@ -137,6 +137,11 @@ function loadMap(){
         isPinching = true;
         lastDistance = getDistance(e.touches);
       }
+
+      const texts = g.querySelectorAll("text");
+        texts.forEach(t=>{
+          t.style.display = scale > 2 ? "block" : "none";
+        });
       else if(e.touches.length===1){
         isDragging = true;
         startX = e.touches[0].clientX - translateX;
@@ -241,6 +246,7 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
+
 
 
 
