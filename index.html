@@ -30,14 +30,14 @@ svg{
   height:100%;
 }
 
-.prefecture{
+.prefecture path{
   fill:white;
   stroke:#333;
   stroke-width:1;
   cursor:pointer;
 }
 
-.prefecture.active{
+.prefecture.active path{
   fill:red;
 }
 
@@ -45,6 +45,32 @@ button{
   margin:10px;
   padding:10px 20px;
   font-size:16px;
+}
+
+/* ▼▼ 追加：都道府県リスト ▼▼ */
+
+#pref-list{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:6px;
+  padding:10px;
+  max-width:1000px;
+  margin:0 auto 40px;
+}
+
+.pref-item{
+  padding:6px 10px;
+  font-size:14px;
+  border:1px solid #333;
+  background:white;
+  cursor:pointer;
+  border-radius:4px;
+}
+
+.pref-item.active{
+  background:red;
+  color:white;
 }
 </style>
 </head>
@@ -54,6 +80,9 @@ button{
 <h1>あいかのにほんせいは</h1>
 <div id="map-container"></div>
 <button id="resetBtn">全て解除</button>
+
+<!-- ▼▼ 追加 ▼▼ -->
+<div id="pref-list"></div>
 
 <script>
 const container = document.getElementById("map-container");
@@ -70,7 +99,6 @@ let translateY = 0;
 let isPinching = false;
 let isDragging = false;
 let startX, startY;
-let svgWidth = 0;
 
 function loadMap(){
 
@@ -81,13 +109,6 @@ function loadMap(){
     container.innerHTML = data;
     const svg = container.querySelector("svg");
 
-    // viewBoxから幅取得
-    if(svg.viewBox.baseVal.width){
-      svgWidth = svg.viewBox.baseVal.width;
-    } else {
-      svgWidth = svg.getBBox().width;
-    }
-
     const g = document.createElementNS("http://www.w3.org/2000/svg","g");
 
     while(svg.firstChild){
@@ -95,13 +116,39 @@ function loadMap(){
     }
     svg.appendChild(g);
 
-    const prefs = g.querySelectorAll(".prefecture");
+    /* ▼ 都道府県取得方法変更（data-codeベース） */
+    const prefs = g.querySelectorAll("g[data-code]");
+
+    const listContainer = document.getElementById("pref-list");
+    listContainer.innerHTML = "";
 
     prefs.forEach(pref=>{
+
+      const titleTag = pref.querySelector("title");
+      const name = titleTag
+        ? titleTag.textContent.split("/")[0].trim()
+        : "不明";
+
+      pref.classList.add("prefecture");
+
+      /* 地図クリック */
       pref.addEventListener("click",()=>{
         if(isPinching || isDragging) return;
         pref.classList.toggle("active");
+        item.classList.toggle("active", pref.classList.contains("active"));
       });
+
+      /* ▼ リスト生成 */
+      const item = document.createElement("div");
+      item.className = "pref-item";
+      item.textContent = name;
+
+      item.addEventListener("click",()=>{
+        pref.classList.toggle("active");
+        item.classList.toggle("active");
+      });
+
+      listContainer.appendChild(item);
     });
 
     updateTransform(g);
@@ -212,11 +259,11 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
   document.querySelectorAll(".prefecture").forEach(p=>{
     p.classList.remove("active");
   });
+  document.querySelectorAll(".pref-item").forEach(p=>{
+    p.classList.remove("active");
+  });
 });
 </script>
 
 </body>
 </html>
-
-
-
