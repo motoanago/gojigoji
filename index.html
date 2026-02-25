@@ -71,6 +71,7 @@ let startX = 0;
 let startY = 0;
 let initialScale = 1;
 let initialDistance = 0;
+let g, svg;
 
 function loadMap(){
 
@@ -79,16 +80,16 @@ fetch(getSVGFile())
 .then(data=>{
 
   container.innerHTML = data;
-  const svg = container.querySelector("svg");
+  svg = container.querySelector("svg");
 
-  // viewBox強制設定（ズレ防止）
+  // viewBoxが無い場合は追加（ズレ防止）
   if(!svg.hasAttribute("viewBox")){
     const w = svg.getAttribute("width");
     const h = svg.getAttribute("height");
     svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
   }
 
-  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  g = document.createElementNS("http://www.w3.org/2000/svg","g");
   while(svg.firstChild){
     g.appendChild(svg.firstChild);
   }
@@ -96,9 +97,8 @@ fetch(getSVGFile())
 
   const prefs = g.querySelectorAll(".prefecture");
 
-  // ===== 都道府県名を常に表示（サイズは拡大率連動）=====
+  // ===== 都道府県名追加（常時表示）=====
   prefs.forEach(pref=>{
-
     const title = pref.querySelector("title");
     if(!title) return;
 
@@ -120,6 +120,7 @@ fetch(getSVGFile())
     pref.appendChild(text);
   });
 
+  // タップで色変更
   prefs.forEach(pref=>{
     pref.addEventListener("click",()=>{
       if(isDragging || isPinching) return;
@@ -143,19 +144,21 @@ fetch(getSVGFile())
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
     }
-
   });
 
   // ===== タッチ移動 =====
   container.addEventListener("touchmove", e=>{
 
+    // ----- ピンチ -----
     if(e.touches.length===2){
 
       e.preventDefault();
 
       const newDistance = getDistance(e.touches);
       let newScale = initialScale * (newDistance / initialDistance);
-      newScale = Math.max(1, Math.min(newScale,5));
+
+      // 0.5〜1 の範囲に制限
+      newScale = Math.max(0.5, Math.min(newScale,1));
 
       const pt = svg.createSVGPoint();
       pt.x = (e.touches[0].clientX + e.touches[1].clientX)/2;
@@ -170,13 +173,15 @@ fetch(getSVGFile())
       updateTransform();
     }
 
+    // ----- ドラッグ -----
     else if(e.touches.length===1 && isDragging){
 
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
 
-      translateX += dx/scale;
-      translateY += dy/scale;
+      // ★ スケール補正なし（自然な速度）
+      translateX += dx;
+      translateY += dy;
 
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
@@ -204,8 +209,8 @@ fetch(getSVGFile())
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
 
-    translateX += dx/scale;
-    translateY += dy/scale;
+    translateX += dx;
+    translateY += dy;
 
     startX = e.clientX;
     startY = e.clientY;
@@ -216,7 +221,11 @@ fetch(getSVGFile())
   container.addEventListener("mouseup", ()=>{isDragging=false;});
   container.addEventListener("mouseleave", ()=>{isDragging=false;});
 
-  function updateTransform(){
+});
+
+}
+
+function updateTransform(){
 
   const rect = container.getBoundingClientRect();
   const svgWidth  = rect.width;
@@ -225,42 +234,34 @@ fetch(getSVGFile())
   const contentWidth  = svgWidth  * scale;
   const contentHeight = svgHeight * scale;
 
-  // ★ 最大表示（scale === 1）のときだけ固定
+  // ★ 最大表示（scale=1）のときだけ固定
   if(scale === 1){
 
-    // 横方向固定（左右に出ない）
     const minX = svgWidth - contentWidth;
     const maxX = 0;
     translateX = Math.min(maxX, Math.max(minX, translateX));
 
-    // 縦方向も固定したい場合は有効に
     const minY = svgHeight - contentHeight;
     const maxY = 0;
     translateY = Math.min(maxY, Math.max(minY, translateY));
   }
-
-  // scale < 1 のときは自由に動かせる（制限なし）
 
   g.setAttribute(
     "transform",
     `translate(${translateX},${translateY}) scale(${scale})`
   );
 
-  // 文字サイズを拡大率に連動
+  // 文字サイズ連動
   const texts = g.querySelectorAll("text");
   texts.forEach(t=>{
     t.setAttribute("font-size", 14/scale);
   });
 }
 
-
-  function getDistance(touches){
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx*dx+dy*dy);
-  }
-
-});
+function getDistance(touches){
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
 }
 
 loadMap();
@@ -282,6 +283,3 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
-
-
-
