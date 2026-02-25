@@ -9,11 +9,10 @@ body{
   margin:0;
   background:#f5f5f5;
   font-family:sans-serif;
-  text-align:center;
 }
 #map-container{
   width:100%;
-  height:90vh;
+  height:100vh;
   overflow:hidden;
   touch-action:none;
 }
@@ -22,12 +21,19 @@ svg{
   height:100%;
 }
 .prefecture{
-  cursor:pointer;
   fill:white;
   stroke:#333;
+  cursor:pointer;
 }
 .prefecture.active{
   fill:red;
+}
+text{
+  fill:#000;
+  stroke:#fff;
+  stroke-width:3;
+  paint-order:stroke;
+  pointer-events:none;
 }
 </style>
 </head>
@@ -41,8 +47,8 @@ const container=document.getElementById("map-container");
 let scale=1;
 let translateX=0;
 let translateY=0;
-let startX,startY;
 let isDragging=false;
+let startPoint=null;
 let initialDistance=0;
 let initialScale=1;
 
@@ -51,23 +57,32 @@ fetch("map-full.svg")
 .then(data=>{
 
 container.innerHTML=data;
+
 const svg=container.querySelector("svg");
 
-// ===== 地図レイヤー =====
+/* ===============================
+   viewBoxが無いSVG対策（超重要）
+================================ */
+if(!svg.hasAttribute("viewBox")){
+  const w=svg.getAttribute("width");
+  const h=svg.getAttribute("height");
+  svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
+}
+
+/* ===============================
+   地図ラッパー
+================================ */
 const wrapper=document.createElementNS("http://www.w3.org/2000/svg","g");
 while(svg.firstChild){
   wrapper.appendChild(svg.firstChild);
 }
 svg.appendChild(wrapper);
 
-// ===== ラベルレイヤー =====
-const labelLayer=document.createElementNS("http://www.w3.org/2000/svg","g");
-svg.appendChild(labelLayer);
-
-// ===== 都道府県取得 =====
+/* ===============================
+   ラベル生成（transform完全対応）
+================================ */
 const prefs=wrapper.querySelectorAll(".prefecture");
 
-// ===== ラベル生成（transform完全対応）=====
 prefs.forEach(pref=>{
 
   const title=pref.querySelector("title");
@@ -78,33 +93,25 @@ prefs.forEach(pref=>{
   const bbox=pref.getBBox();
   const matrix=pref.getCTM();
 
-  const point=svg.createSVGPoint();
-  point.x=bbox.x+bbox.width/2;
-  point.y=bbox.y+bbox.height/2;
+  const pt=svg.createSVGPoint();
+  pt.x=bbox.x+bbox.width/2;
+  pt.y=bbox.y+bbox.height/2;
 
-  const globalPoint=point.matrixTransform(matrix);
+  const global=pt.matrixTransform(matrix);
 
   const text=document.createElementNS("http://www.w3.org/2000/svg","text");
-  text.setAttribute("x",globalPoint.x);
-  text.setAttribute("y",globalPoint.y);
+  text.setAttribute("x",global.x);
+  text.setAttribute("y",global.y);
   text.setAttribute("text-anchor","middle");
   text.setAttribute("dominant-baseline","middle");
 
-  // 初期フォントサイズ（県サイズに合わせる）
   let baseFont=bbox.width/name.length*0.6;
   baseFont=Math.max(8,Math.min(baseFont,18));
-
-  text.setAttribute("data-base-font",baseFont);
   text.setAttribute("font-size",baseFont);
 
-  text.setAttribute("fill","#000");
-  text.setAttribute("stroke","#fff");
-  text.setAttribute("stroke-width","3");
-  text.setAttribute("paint-order","stroke");
-  text.setAttribute("pointer-events","none");
   text.textContent=name;
 
-  labelLayer.appendChild(text);
+  wrapper.appendChild(text);
 
   pref.addEventListener("click",()=>{
     pref.classList.toggle("active");
@@ -112,22 +119,38 @@ prefs.forEach(pref=>{
 
 });
 
-updateTransform();
+/* ===============================
+   座標変換関数（ズレ防止の核心）
+================================ */
+function getSVGPoint(clientX,clientY){
+  const pt=svg.createSVGPoint();
+  pt.x=clientX;
+  pt.y=clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
 
-// ========================
-// タッチ操作
-// ========================
+/* ===============================
+   タッチ開始
+================================ */
 container.addEventListener("touchstart",e=>{
+
   if(e.touches.length===2){
     initialDistance=getDistance(e.touches);
     initialScale=scale;
-  }else if(e.touches.length===1){
-    isDragging=true;
-    startX=e.touches[0].clientX-translateX;
-    startY=e.touches[0].clientY-translateY;
   }
+  else if(e.touches.length===1){
+    isDragging=true;
+    startPoint=getSVGPoint(
+      e.touches[0].clientX,
+      e.touches[0].clientY
+    );
+  }
+
 });
 
+/* ===============================
+   タッチ移動
+================================ */
 container.addEventListener("touchmove",e=>{
 
   if(e.touches.length===2){
@@ -137,70 +160,18 @@ container.addEventListener("touchmove",e=>{
     let newScale=initialScale*(newDistance/initialDistance);
     newScale=Math.max(0.5,Math.min(newScale,5));
 
-    const rect=container.getBoundingClientRect();
-    const centerX=(e.touches[0].clientX+e.touches[1].clientX)/2-rect.left;
-    const centerY=(e.touches[0].clientY+e.touches[1].clientY)/2-rect.top;
+    const centerX=(e.touches[0].clientX+e.touches[1].clientX)/2;
+    const centerY=(e.touches[0].clientY+e.touches[1].clientY)/2;
 
-    translateX=centerX-(centerX-translateX)*(newScale/scale);
-    translateY=centerY-(centerY-translateY)*(newScale/scale);
+    const svgPoint=getSVGPoint(centerX,centerY);
+
+    translateX=svgPoint.x-(svgPoint.x-translateX)*(newScale/scale);
+    translateY=svgPoint.y-(svgPoint.y-translateY)*(newScale/scale);
 
     scale=newScale;
     updateTransform();
   }
 
   else if(e.touches.length===1 && isDragging){
-    translateX=e.touches[0].clientX-startX;
-    translateY=e.touches[0].clientY-startY;
-    updateTransform();
-  }
-
-});
-
-container.addEventListener("touchend",()=>{
-  isDragging=false;
-});
-
-// ========================
-// マウス操作
-// ========================
-container.addEventListener("mousedown",e=>{
-  isDragging=true;
-  startX=e.clientX-translateX;
-  startY=e.clientY-translateY;
-});
-container.addEventListener("mousemove",e=>{
-  if(!isDragging)return;
-  translateX=e.clientX-startX;
-  translateY=e.clientY-startY;
-  updateTransform();
-});
-container.addEventListener("mouseup",()=>isDragging=false);
-container.addEventListener("mouseleave",()=>isDragging=false);
-
-// ========================
-// 変形処理
-// ========================
-function updateTransform(){
-
-  const transform=`translate(${translateX},${translateY}) scale(${scale})`;
-  wrapper.setAttribute("transform",transform);
-  labelLayer.setAttribute("transform",transform);
-
-  // 文字サイズをスケールに連動
-  labelLayer.querySelectorAll("text").forEach(t=>{
-    const baseFont=parseFloat(t.getAttribute("data-base-font"));
-    t.setAttribute("font-size",baseFont);
-  });
-
-}
-
-function getDistance(touches){
-  const dx=touches[0].clientX-touches[1].clientX;
-  const dy=touches[0].clientY-touches[1].clientY;
-  return Math.sqrt(dx*dx+dy*dy);
-}
-
-});
-</script>
-</body>
-</html>
+    const movePoint=getSVGPoint(
+      e.touches[0].clie
