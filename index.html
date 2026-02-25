@@ -225,27 +225,28 @@ fetch(getSVGFile())
   const contentWidth  = svgWidth  * scale;
   const contentHeight = svgHeight * scale;
 
-  // ★ 拡大時だけ制限する
-  if(scale > 1){
+  // ★ 最大表示（scale === 1）のときだけ固定
+  if(scale === 1){
 
-    // 横制限
+    // 横方向固定（左右に出ない）
     const minX = svgWidth - contentWidth;
     const maxX = 0;
     translateX = Math.min(maxX, Math.max(minX, translateX));
 
-    // 縦制限
+    // 縦方向も固定したい場合は有効に
     const minY = svgHeight - contentHeight;
     const maxY = 0;
     translateY = Math.min(maxY, Math.max(minY, translateY));
-
   }
+
+  // scale < 1 のときは自由に動かせる（制限なし）
 
   g.setAttribute(
     "transform",
     `translate(${translateX},${translateY}) scale(${scale})`
   );
 
-  // 文字サイズ調整
+  // 文字サイズを拡大率に連動
   const texts = g.querySelectorAll("text");
   texts.forEach(t=>{
     t.setAttribute("font-size", 14/scale);
@@ -281,5 +282,6 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
+
 
 
