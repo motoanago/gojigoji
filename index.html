@@ -70,7 +70,6 @@ let translateY = 0;
 let isPinching = false;
 let isDragging = false;
 let startX, startY;
-let svgWidth = 0;
 
 function loadMap(){
 
@@ -81,13 +80,6 @@ function loadMap(){
     container.innerHTML = data;
     const svg = container.querySelector("svg");
 
-    // viewBoxから幅取得
-    if(svg.viewBox.baseVal.width){
-      svgWidth = svg.viewBox.baseVal.width;
-    } else {
-      svgWidth = svg.getBBox().width;
-    }
-
     const g = document.createElementNS("http://www.w3.org/2000/svg","g");
 
     while(svg.firstChild){
@@ -97,30 +89,33 @@ function loadMap(){
 
     const prefs = g.querySelectorAll(".prefecture");
 
-    // ===== 都道府県名表示追加 =====
+    // ===== 都道府県名を追加（最初は非表示）=====
     prefs.forEach(pref => {
-    
+
       const title = pref.querySelector("title");
       if(!title) return;
-    
+
       const name = title.textContent.split("/")[0].trim();
-    
       const bbox = pref.getBBox();
-    
+
       const text = document.createElementNS("http://www.w3.org/2000/svg","text");
       text.setAttribute("x", bbox.x + bbox.width/2);
       text.setAttribute("y", bbox.y + bbox.height/2);
       text.setAttribute("text-anchor","middle");
       text.setAttribute("dominant-baseline","middle");
-      text.setAttribute("font-size","12");
+      text.setAttribute("font-size","14");
       text.setAttribute("fill","#000");
+      text.setAttribute("stroke","#fff");
+      text.setAttribute("stroke-width","3");
+      text.setAttribute("paint-order","stroke");
       text.setAttribute("pointer-events","none");
+      text.style.display = "none";
       text.textContent = name;
-    
+
       pref.appendChild(text);
     });
 
-
+    // タップで色変更
     prefs.forEach(pref=>{
       pref.addEventListener("click",()=>{
         if(isPinching || isDragging) return;
@@ -132,16 +127,12 @@ function loadMap(){
 
     let lastDistance = 0;
 
+    // ===== タッチ開始 =====
     container.addEventListener("touchstart", e=>{
       if(e.touches.length===2){
         isPinching = true;
         lastDistance = getDistance(e.touches);
       }
-
-      const texts = g.querySelectorAll("text");
-        texts.forEach(t=>{
-          t.style.display = scale > 2 ? "block" : "none";
-        });
       else if(e.touches.length===1){
         isDragging = true;
         startX = e.touches[0].clientX - translateX;
@@ -149,6 +140,7 @@ function loadMap(){
       }
     });
 
+    // ===== タッチ移動 =====
     container.addEventListener("touchmove", e=>{
 
       if(e.touches.length===2){
@@ -168,7 +160,6 @@ function loadMap(){
         translateY -= (centerY - translateY) * (newScale/scale - 1);
 
         scale = newScale;
-
         updateTransform(g);
 
         lastDistance = distance;
@@ -182,6 +173,7 @@ function loadMap(){
 
     });
 
+    // ===== タッチ終了 =====
     container.addEventListener("touchend", e=>{
       if(e.touches.length<2){
         setTimeout(()=>{isPinching=false},100);
@@ -191,6 +183,7 @@ function loadMap(){
       }
     });
 
+    // ===== マウス操作 =====
     container.addEventListener("mousedown", e=>{
       if(scale<=1) return;
       isDragging = true;
@@ -208,14 +201,18 @@ function loadMap(){
     container.addEventListener("mouseup", ()=>{ isDragging=false; });
     container.addEventListener("mouseleave", ()=>{ isDragging=false; });
 
+    // ===== 変形処理 =====
     function updateTransform(g){
       g.setAttribute(
         "transform",
-        `
-        translate(${translateX},${translateY})
-        scale(${scale})
-        `
+        `translate(${translateX},${translateY}) scale(${scale})`
       );
+
+      // ★ 拡大時のみ都道府県名表示
+      const texts = g.querySelectorAll("text");
+      texts.forEach(t=>{
+        t.style.display = scale > 2 ? "block" : "none";
+      });
     }
 
     function getDistance(touches){
@@ -229,6 +226,7 @@ function loadMap(){
 
 loadMap();
 
+// 画面リサイズ時再読み込み
 window.addEventListener("resize",()=>{
   container.innerHTML="";
   scale=1;
@@ -237,6 +235,7 @@ window.addEventListener("resize",()=>{
   loadMap();
 });
 
+// 全解除ボタン
 document.getElementById("resetBtn").addEventListener("click",()=>{
   document.querySelectorAll(".prefecture").forEach(p=>{
     p.classList.remove("active");
@@ -246,7 +245,3 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 </body>
 </html>
-
-
-
-
