@@ -48,13 +48,13 @@ text{
 
 <body>
 
-<h1>あいかのにほんせいは</h1>
+<h1>あああいかのにほんせいは</h1>
 <div id="map-container"></div>
 
 <script>
 const container = document.getElementById("map-container");
 
-let scale = 1;
+let scale = 1;            // 1が最小（全体表示）
 let translateX = 0;
 let translateY = 0;
 
@@ -82,21 +82,14 @@ fetch("map-full.svg")
     svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
   }
 
+  // すべてをgで包む
   g = document.createElementNS("http://www.w3.org/2000/svg","g");
   while(svg.firstChild){
     g.appendChild(svg.firstChild);
   }
   svg.appendChild(g);
 
-  // ===== 沖縄を大きく下へ移動 =====
   const prefs = g.querySelectorAll(".prefecture");
-
-  prefs.forEach(pref=>{
-    const title = pref.querySelector("title");
-    if(title && title.textContent.includes("沖縄")){
-      pref.setAttribute("transform","translate(0,800)");
-    }
-  });
 
   // ===== 県名追加 =====
   prefs.forEach(pref=>{
@@ -107,15 +100,24 @@ fetch("map-full.svg")
     const name = title.textContent.split("/")[0].trim();
     const bbox = pref.getBBox();
 
+    let x = bbox.x + bbox.width / 2;
+    let y = bbox.y + bbox.height / 2;
+
+    // ★ 鹿児島県と東京都だけ上端に表示
+    if(name === "鹿児島県" || name === "東京都"){
+      y = bbox.y + 15; // 上端＋少し下（調整可）
+    }
+
     const text = document.createElementNS("http://www.w3.org/2000/svg","text");
-    text.setAttribute("x", bbox.x + bbox.width/2);
-    text.setAttribute("y", bbox.y + bbox.height/2);
+    text.setAttribute("x", x);
+    text.setAttribute("y", y);
     text.setAttribute("text-anchor","middle");
     text.setAttribute("dominant-baseline","middle");
     text.textContent = name;
 
     pref.appendChild(text);
 
+    // ★ 複数選択（赤）
     pref.addEventListener("click",()=>{
       pref.classList.toggle("active");
     });
@@ -123,6 +125,7 @@ fetch("map-full.svg")
 
   updateTransform();
 
+  // ===== タッチ開始 =====
   container.addEventListener("touchstart", e=>{
 
     if(e.touches.length===2){
@@ -138,8 +141,10 @@ fetch("map-full.svg")
     }
   });
 
+  // ===== タッチ移動 =====
   container.addEventListener("touchmove", e=>{
 
+    // ピンチ拡大
     if(e.touches.length===2){
 
       e.preventDefault();
@@ -147,6 +152,7 @@ fetch("map-full.svg")
       const newDistance = getDistance(e.touches);
       let newScale = initialScale * (newDistance / initialDistance);
 
+      // 縮小禁止、最大4倍
       newScale = Math.max(1, Math.min(newScale,4));
 
       const pt = svg.createSVGPoint();
@@ -162,6 +168,7 @@ fetch("map-full.svg")
       updateTransform();
     }
 
+    // ドラッグ
     else if(e.touches.length===1 && isDragging){
 
       const dx = e.touches[0].clientX - startX;
@@ -192,13 +199,13 @@ function updateTransform(){
   const contentWidth  = viewBox.width * scale;
   const contentHeight = viewBox.height * scale;
 
-  const containerRect = container.getBoundingClientRect();
-  const containerW = containerRect.width;
-  const containerH = containerRect.height;
+  const rect = container.getBoundingClientRect();
+  const containerW = rect.width;
+  const containerH = rect.height;
 
   if(scale === 1){
     translateX = 0;
-    translateY = 0;   // 上揃え固定
+    translateY = 0;
   }
   else{
     const minX = containerW - contentWidth;
