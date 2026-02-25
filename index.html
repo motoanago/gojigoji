@@ -13,16 +13,13 @@ body{
   background:#f5f5f5;
 }
 
-h1{
-  margin:10px 0;
-}
+h1{ margin:10px 0; }
 
 #map-container{
   width:100%;
   height:80vh;
   overflow:hidden;
   touch-action:none;
-  position:relative;
 }
 
 svg{
@@ -73,173 +70,177 @@ let startX, startY;
 
 function loadMap(){
 
-  fetch(getSVGFile())
-  .then(res=>res.text())
-  .then(data=>{
+fetch(getSVGFile())
+.then(res=>res.text())
+.then(data=>{
 
-    container.innerHTML = data;
-    const svg = container.querySelector("svg");
+container.innerHTML = data;
+const svg = container.querySelector("svg");
 
-    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+const mapLayer = document.createElementNS("http://www.w3.org/2000/svg","g");
+const labelLayer = document.createElementNS("http://www.w3.org/2000/svg","g");
 
-    while(svg.firstChild){
-      g.appendChild(svg.firstChild);
-    }
-    svg.appendChild(g);
+while(svg.firstChild){
+  mapLayer.appendChild(svg.firstChild);
+}
 
-    const prefs = g.querySelectorAll(".prefecture");
+svg.appendChild(mapLayer);
+svg.appendChild(labelLayer);
 
-    // ===== 都道府県名を追加（最初は非表示）=====
-    prefs.forEach(pref => {
+const prefs = mapLayer.querySelectorAll(".prefecture");
 
-      const title = pref.querySelector("title");
-      if(!title) return;
+// ===== ラベル作成 =====
+prefs.forEach(pref=>{
 
-      const name = title.textContent.split("/")[0].trim();
-      const bbox = pref.getBBox();
+  const title = pref.querySelector("title");
+  if(!title) return;
 
-      const text = document.createElementNS("http://www.w3.org/2000/svg","text");
-      text.setAttribute("x", bbox.x + bbox.width/2);
-      text.setAttribute("y", bbox.y + bbox.height/2);
-      text.setAttribute("text-anchor","middle");
-      text.setAttribute("dominant-baseline","middle");
-      text.setAttribute("font-size","14");
-      text.setAttribute("fill","#000");
-      text.setAttribute("stroke","#fff");
-      text.setAttribute("stroke-width","3");
-      text.setAttribute("paint-order","stroke");
-      text.setAttribute("pointer-events","none");
-      text.style.display = "none";
-      text.textContent = name;
+  const name = title.textContent.split("/")[0].trim();
+  const bbox = pref.getBBox();
 
-      pref.appendChild(text);
-    });
+  const text = document.createElementNS("http://www.w3.org/2000/svg","text");
 
-    // タップで色変更
-    prefs.forEach(pref=>{
-      pref.addEventListener("click",()=>{
-        if(isPinching || isDragging) return;
-        pref.classList.toggle("active");
-      });
-    });
+  const centerX = bbox.x + bbox.width/2;
+  const centerY = bbox.y + bbox.height/2;
 
-    updateTransform(g);
+  text.setAttribute("x", centerX);
+  text.setAttribute("y", centerY);
+  text.setAttribute("text-anchor","middle");
+  text.setAttribute("dominant-baseline","middle");
 
-    let lastDistance = 0;
+  // ★ 横幅に応じてフォント自動調整
+  let fontSize = bbox.width / name.length * 0.8;
+  fontSize = Math.max(8, Math.min(fontSize, 18));
 
-    // ===== タッチ開始 =====
-    container.addEventListener("touchstart", e=>{
-      if(e.touches.length===2){
-        isPinching = true;
-        lastDistance = getDistance(e.touches);
-      }
-      else if(e.touches.length===1){
-        isDragging = true;
-        startX = e.touches[0].clientX - translateX;
-        startY = e.touches[0].clientY - translateY;
-      }
-    });
+  text.setAttribute("font-size", fontSize);
+  text.setAttribute("fill","#000");
+  text.setAttribute("stroke","#fff");
+  text.setAttribute("stroke-width","3");
+  text.setAttribute("paint-order","stroke");
+  text.setAttribute("pointer-events","none");
+  text.style.display="none";
+  text.textContent = name;
 
-    // ===== タッチ移動 =====
-    container.addEventListener("touchmove", e=>{
+  labelLayer.appendChild(text);
+});
 
-      if(e.touches.length===2){
-        e.preventDefault();
-
-        const distance = getDistance(e.touches);
-        const diff = distance - lastDistance;
-
-        let newScale = scale + diff * 0.005;
-        newScale = Math.max(1, Math.min(newScale,5));
-
-        const rect = container.getBoundingClientRect();
-        const centerX = (e.touches[0].clientX + e.touches[1].clientX)/2 - rect.left;
-        const centerY = (e.touches[0].clientY + e.touches[1].clientY)/2 - rect.top;
-
-        translateX -= (centerX - translateX) * (newScale/scale - 1);
-        translateY -= (centerY - translateY) * (newScale/scale - 1);
-
-        scale = newScale;
-        updateTransform(g);
-
-        lastDistance = distance;
-      }
-
-      else if(e.touches.length===1 && isDragging && scale>1){
-        translateX = e.touches[0].clientX - startX;
-        translateY = e.touches[0].clientY - startY;
-        updateTransform(g);
-      }
-
-    });
-
-    // ===== タッチ終了 =====
-    container.addEventListener("touchend", e=>{
-      if(e.touches.length<2){
-        setTimeout(()=>{isPinching=false},100);
-      }
-      if(e.touches.length===0){
-        isDragging=false;
-      }
-    });
-
-    // ===== マウス操作 =====
-    container.addEventListener("mousedown", e=>{
-      if(scale<=1) return;
-      isDragging = true;
-      startX = e.clientX - translateX;
-      startY = e.clientY - translateY;
-    });
-
-    container.addEventListener("mousemove", e=>{
-      if(!isDragging) return;
-      translateX = e.clientX - startX;
-      translateY = e.clientY - startY;
-      updateTransform(g);
-    });
-
-    container.addEventListener("mouseup", ()=>{ isDragging=false; });
-    container.addEventListener("mouseleave", ()=>{ isDragging=false; });
-
-    // ===== 変形処理 =====
-    function updateTransform(g){
-      g.setAttribute(
-        "transform",
-        `translate(${translateX},${translateY}) scale(${scale})`
-      );
-
-      // ★ 拡大時のみ都道府県名表示
-      const texts = g.querySelectorAll("text");
-      texts.forEach(t=>{
-        t.style.display = scale > 2 ? "block" : "none";
-      });
-    }
-
-    function getDistance(touches){
-      const dx = touches[0].clientX - touches[1].clientX;
-      const dy = touches[0].clientY - touches[1].clientY;
-      return Math.sqrt(dx*dx+dy*dy);
-    }
-
+// タップ色変更
+prefs.forEach(pref=>{
+  pref.addEventListener("click",()=>{
+    if(isPinching || isDragging) return;
+    pref.classList.toggle("active");
   });
+});
+
+updateTransform();
+
+let lastDistance = 0;
+
+container.addEventListener("touchstart", e=>{
+  if(e.touches.length===2){
+    isPinching=true;
+    lastDistance=getDistance(e.touches);
+  }else if(e.touches.length===1){
+    isDragging=true;
+    startX=e.touches[0].clientX-translateX;
+    startY=e.touches[0].clientY-translateY;
+  }
+});
+
+container.addEventListener("touchmove", e=>{
+
+  if(e.touches.length===2){
+    e.preventDefault();
+
+    const distance=getDistance(e.touches);
+    const diff=distance-lastDistance;
+
+    let newScale=scale+diff*0.005;
+    newScale=Math.max(1,Math.min(newScale,5));
+
+    const rect=container.getBoundingClientRect();
+    const centerX=(e.touches[0].clientX+e.touches[1].clientX)/2-rect.left;
+    const centerY=(e.touches[0].clientY+e.touches[1].clientY)/2-rect.top;
+
+    translateX-=(centerX-translateX)*(newScale/scale-1);
+    translateY-=(centerY-translateY)*(newScale/scale-1);
+
+    scale=newScale;
+    updateTransform();
+    lastDistance=distance;
+  }
+
+  else if(e.touches.length===1 && isDragging && scale>1){
+    translateX=e.touches[0].clientX-startX;
+    translateY=e.touches[0].clientY-startY;
+    updateTransform();
+  }
+
+});
+
+container.addEventListener("touchend", e=>{
+  if(e.touches.length<2){
+    setTimeout(()=>{isPinching=false},100);
+  }
+  if(e.touches.length===0){
+    isDragging=false;
+  }
+});
+
+container.addEventListener("mousedown", e=>{
+  if(scale<=1) return;
+  isDragging=true;
+  startX=e.clientX-translateX;
+  startY=e.clientY-translateY;
+});
+
+container.addEventListener("mousemove", e=>{
+  if(!isDragging) return;
+  translateX=e.clientX-startX;
+  translateY=e.clientY-startY;
+  updateTransform();
+});
+
+container.addEventListener("mouseup", ()=>{isDragging=false;});
+container.addEventListener("mouseleave", ()=>{isDragging=false;});
+
+function updateTransform(){
+
+  const transformValue=
+  `translate(${translateX},${translateY}) scale(${scale})`;
+
+  mapLayer.setAttribute("transform",transformValue);
+  labelLayer.setAttribute("transform",transformValue);
+
+  const texts=labelLayer.querySelectorAll("text");
+  texts.forEach(t=>{
+    t.style.display = scale>2 ? "block":"none";
+  });
+}
+
+function getDistance(touches){
+  const dx=touches[0].clientX-touches[1].clientX;
+  const dy=touches[0].clientY-touches[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+
+});
 }
 
 loadMap();
 
-// 画面リサイズ時再読み込み
 window.addEventListener("resize",()=>{
-  container.innerHTML="";
-  scale=1;
-  translateX=0;
-  translateY=0;
-  loadMap();
+container.innerHTML="";
+scale=1;
+translateX=0;
+translateY=0;
+loadMap();
 });
 
-// 全解除ボタン
 document.getElementById("resetBtn").addEventListener("click",()=>{
-  document.querySelectorAll(".prefecture").forEach(p=>{
-    p.classList.remove("active");
-  });
+document.querySelectorAll(".prefecture").forEach(p=>{
+p.classList.remove("active");
+});
 });
 </script>
 
