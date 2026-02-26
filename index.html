@@ -2,95 +2,133 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>日本地図クリック</title>
+<title>47都道府県マップ</title>
 
 <style>
 body {
   margin: 0;
-  background: #f4f4f4;
   font-family: sans-serif;
 }
 
-.map-container {
-  width: 90%;
-  margin: 40px auto;
+.container {
+  display: flex;
+  height: 100vh;
 }
 
-/* SVGをレスポンシブに */
-svg {
+/* 左：地図 */
+.map-area {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f5f5f5;
+}
+
+/* 右：ボタン */
+.list-area {
+  width: 420px;
+  overflow-y: auto;
+  padding: 20px;
+  border-left: 1px solid #ddd;
+  background: #fff;
+}
+
+.pref-btn {
   width: 100%;
+  padding: 8px;
+  margin-bottom: 6px;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  cursor: pointer;
+  text-align: left;
+  transition: 0.2s;
+}
+
+.pref-btn.active {
+  background: red;
+  color: white;
+}
+
+svg {
+  width: 95%;
   height: auto;
 }
 
-/* 都道府県 */
-.pref {
-  fill: #e0e0e0;
-  stroke: #333;
-  stroke-width: 1;
+.prefecture {
+  fill: #EEEEEE;
+  stroke: #000;
   cursor: pointer;
   transition: 0.2s;
 }
 
-.pref:hover {
-  fill: #ff9999;
+.prefecture:hover {
+  fill: #ffaaaa;
 }
 
-/* クリック後 */
-.pref.active {
-  fill: red;
-}
-
-/* ラベル */
-.pref-label {
-  font-size: 18px;
-  font-weight: bold;
-  text-anchor: middle;
-  pointer-events: none;
+.prefecture.active {
+  fill: red !important;
 }
 </style>
 </head>
-
 <body>
 
-<div class="map-container">
-
-<svg viewBox="0 0 1000 700">
-
-  <!-- 北海道 -->
-  <path id="hokkaido" class="pref"
-    d="M600 80 L700 80 L720 150 L650 180 L580 140 Z" />
-  <text x="650" y="130" class="pref-label">北海道</text>
-
-  <!-- 東京 -->
-  <path id="tokyo" class="pref"
-    d="M620 400 L660 400 L660 440 L620 440 Z" />
-  <text x="640" y="425" class="pref-label">東京</text>
-
-  <!-- 大阪 -->
-  <path id="osaka" class="pref"
-    d="M500 450 L540 450 L540 490 L500 490 Z" />
-  <text x="520" y="475" class="pref-label">大阪</text>
-
-  <!-- 福岡 -->
-  <path id="fukuoka" class="pref"
-    d="M350 480 L390 480 L390 520 L350 520 Z" />
-  <text x="370" y="505" class="pref-label">福岡</text>
-
-</svg>
-
+<div class="container">
+  <div class="map-area" id="map-container"></div>
+  <div class="list-area" id="pref-list"></div>
 </div>
 
 <script>
 
-// クリックで赤くする
-document.querySelectorAll('.pref').forEach(pref => {
-  pref.addEventListener('click', function () {
-    this.classList.toggle('active');
+// あなたのSVGに合わせたclass名一覧
+const prefectures = [
+"hokkaido","aomori","iwate","miyagi","akita","yamagata","fukushima",
+"ibaraki","tochigi","gunma","saitama","chiba","tokyo","kanagawa",
+"niigata","toyama","ishikawa","fukui","yamanashi","nagano",
+"gifu","shizuoka","aichi","mie",
+"shiga","kyoto","osaka","hyogo","nara","wakayama",
+"tottori","shimane","okayama","hiroshima","yamaguchi",
+"tokushima","kagawa","ehime","kochi",
+"fukuoka","saga","nagasaki","kumamoto","oita","miyazaki","kagoshima",
+"okinawa"
+];
+
+// SVG読み込み
+fetch("map-mobile.svg")
+  .then(res => res.text())
+  .then(svg => {
+    document.getElementById("map-container").innerHTML = svg;
+
+    prefectures.forEach(pref => {
+      const el = document.querySelector("g." + pref);
+      if (el) {
+        el.classList.add("prefecture");
+        el.addEventListener("click", () => togglePref(pref));
+      }
+    });
   });
+
+// 右側ボタン生成
+const list = document.getElementById("pref-list");
+
+prefectures.forEach(pref => {
+  const btn = document.createElement("button");
+  btn.className = "pref-btn";
+  btn.dataset.pref = pref;
+  btn.textContent = pref;
+  btn.onclick = () => togglePref(pref);
+  list.appendChild(btn);
 });
 
-// 最初から東京を赤にする例
-document.getElementById('tokyo').classList.add('active');
+// 連動処理
+function togglePref(pref) {
+  const mapEl = document.querySelector("g." + pref);
+  const btnEl = document.querySelector(`[data-pref="${pref}"]`);
+
+  if (!mapEl) return;
+
+  mapEl.classList.toggle("active");
+  btnEl.classList.toggle("active");
+}
 
 </script>
 
