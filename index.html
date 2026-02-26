@@ -32,7 +32,7 @@ body {
   background: #d0ecff;
   overflow: hidden;
   position: relative;
-  touch-action: none; /* JSで制御 */
+  touch-action: none;
 }
 
 .map-wrapper {
@@ -54,6 +54,7 @@ body {
   touch-action: pan-y;
 }
 
+/* ボタン */
 .pref-btn {
   width: 100%;
   padding: 6px 10px;
@@ -114,6 +115,12 @@ body {
     border-left: none;
     border-top: 2px solid #b5dfff;
   }
+
+  .pref-btn {
+    font-size: 13px;
+    padding: 5px 8px;
+    margin-bottom: 5px;
+  }
 }
 </style>
 </head>
@@ -128,7 +135,9 @@ body {
 
 <script>
 
-const prefectures = [/* 省略せず全47そのまま使用 */ 
+/* ===== 47都道府県 ===== */
+
+const prefectures = [
 { id:"hokkaido", name:"北海道", region:"北海道" },
 { id:"aomori", name:"青森県", region:"東北" },
 { id:"iwate", name:"岩手県", region:"東北" },
@@ -178,6 +187,8 @@ const prefectures = [/* 省略せず全47そのまま使用 */
 { id:"okinawa", name:"沖縄県", region:"沖縄" }
 ];
 
+/* ===== SVG読み込み ===== */
+
 const wrapper = document.getElementById("mapWrapper");
 const mapArea = document.getElementById("mapArea");
 
@@ -185,7 +196,46 @@ fetch("map-mobile.svg")
 .then(res => res.text())
 .then(svg => {
   wrapper.innerHTML = svg;
+
+  prefectures.forEach(pref => {
+    const el = document.querySelector("g." + pref.id);
+    if (el) {
+      el.classList.add("prefecture");
+      el.addEventListener("click", () => togglePref(pref.id));
+    }
+  });
 });
+
+/* ===== ボタン生成 ===== */
+
+const list = document.getElementById("pref-list");
+
+prefectures.forEach(pref => {
+  const btn = document.createElement("button");
+  btn.className = "pref-btn";
+  btn.dataset.pref = pref.id;
+
+  btn.innerHTML = `
+    <span>${pref.name}</span>
+    <span class="region-name">${pref.region}</span>
+  `;
+
+  btn.onclick = () => togglePref(pref.id);
+  list.appendChild(btn);
+});
+
+/* ===== 選択処理 ===== */
+
+function togglePref(id) {
+  const mapEl = document.querySelector("g." + id);
+  const btnEl = document.querySelector(`[data-pref="${id}"]`);
+  if (!mapEl) return;
+
+  mapEl.classList.toggle("active");
+  btnEl.classList.toggle("active");
+}
+
+/* ===== マップ専用ピンチズーム ===== */
 
 let scale = 1;
 let startDist = 0;
