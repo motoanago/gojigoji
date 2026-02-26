@@ -8,7 +8,7 @@
 body {
   margin: 0;
   font-family: sans-serif;
-  background: #e6f4ff; /* ← 背景を水色 */
+  background: #e6f4ff;
 }
 
 .container {
@@ -16,16 +16,18 @@ body {
   height: 100vh;
 }
 
-/* 左：地図（70%） */
+/* ===== PC / 横画面 ===== */
+
+/* 左：70% マップ */
 .map-area {
   width: 70%;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #d0ecff; /* 少し濃い水色 */
+  background: #d0ecff;
 }
 
-/* 右：ボタン（30%） */
+/* 右：30% ボタン */
 .list-area {
   width: 30%;
   overflow-y: auto;
@@ -84,6 +86,41 @@ svg {
 .prefecture.active {
   fill: red !important;
 }
+
+/* ===== スマホ縦専用 ===== */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+
+  .container {
+    flex-direction: column;
+  }
+
+  /* 上80% マップ */
+  .map-area {
+    width: 100%;
+    height: 80vh;
+  }
+
+  /* 下20% ボタン */
+  .list-area {
+    width: 100%;
+    height: 20vh;
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    padding: 10px;
+    border-left: none;
+    border-top: 2px solid #b5dfff;
+  }
+
+  .pref-btn {
+    min-width: 120px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    font-size: 13px;
+  }
+
+}
 </style>
 </head>
 <body>
@@ -94,8 +131,6 @@ svg {
 </div>
 
 <script>
-
-/* --- ここから下は前回と同じなので省略せず完全版 --- */
 
 const prefectures = [
 { id:"hokkaido", name:"北海道", region:"北海道" },
