@@ -2,7 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ページ全体ズーム禁止 -->
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
 <title>47都道府県マップ</title>
 
 <style>
@@ -10,6 +14,7 @@ body {
   margin: 0;
   font-family: sans-serif;
   background: #e6f4ff;
+  overflow: hidden;
 }
 
 /* ===== 共通 ===== */
@@ -17,10 +22,10 @@ body {
 .container {
   display: flex;
   height: 100vh;
-  overflow: hidden; /* はみ出し防止 */
+  overflow: hidden;
 }
 
-/* ===== PC・横画面 ===== */
+/* ===== PC / 横画面 ===== */
 
 .map-area {
   width: 70%;
@@ -30,6 +35,16 @@ body {
   align-items: center;
   background: #d0ecff;
   overflow: hidden;
+
+  /* マップのみタッチ操作許可 */
+  touch-action: manipulation;
+}
+
+.map-area svg {
+  width: 90%;
+  max-height: 95%;
+  height: auto;
+  touch-action: auto;
 }
 
 .list-area {
@@ -38,6 +53,9 @@ body {
   padding: 15px;
   background: #ffffff;
   border-left: 2px solid #b5dfff;
+
+  /* ボタン側はピンチ不可・縦スクロールのみ */
+  touch-action: pan-y;
 }
 
 /* ボタン */
@@ -69,13 +87,6 @@ body {
   color: #fff;
 }
 
-/* SVG制御（はみ出し防止） */
-svg {
-  width: 90%;
-  max-height: 95%;
-  height: auto;
-}
-
 /* 都道府県 */
 .prefecture {
   fill: #EEEEEE;
@@ -100,13 +111,11 @@ svg {
     flex-direction: column;
   }
 
-  /* マップ 80% */
   .map-area {
     width: 100%;
     flex: 1;
   }
 
-  /* 下20%固定 */
   .list-area {
     position: fixed;
     bottom: 0;
@@ -121,6 +130,8 @@ svg {
     background: #ffffff;
     border-top: 2px solid #b5dfff;
     border-left: none;
+
+    touch-action: pan-y;
   }
 
   .pref-btn {
