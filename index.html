@@ -1,153 +1,189 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-<meta charset="utf-8">
-<title>Japan SVG Map</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日本地図選択</title>
 
 <style>
-body{
-  margin:0;
-  overflow:hidden;
+body {
+  margin: 0;
+  background: #f4f6f9;
+  font-family: sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
 }
 
-svg{
-  width:100vw;
-  height:100vh;
-  touch-action:none;
-  background:white;
+.wrapper {
+  width: 90vw;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  background: white;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  overflow: hidden;
 }
 
-.prefecture{
-  fill:#eeeeee;
-  stroke:#333;
-  stroke-width:1;
-  cursor:pointer;
-  transition:0.2s;
+.left {
+  width: 50%;
+  position: relative;
+  background: #eef3f9;
 }
 
-.prefecture:hover{
-  fill:#ddd;
+.right {
+  width: 50%;
+  overflow-y: auto;
+  padding: 20px;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
 
-.prefecture.selected{
-  fill:red;
+.right button {
+  padding: 8px;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: 0.2s;
 }
 
-.label{
-  font-size:12px;
-  font-weight:bold;
-  text-anchor:middle;
-  pointer-events:none;
-  fill:black;
+.right button:hover {
+  background: #e0e0e0;
+}
+
+.right button.active {
+  background: red;
+  color: white;
+  border-color: red;
+}
+
+svg {
+  width: 100%;
+  height: 100%;
+}
+
+.prefecture {
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.prefecture.active path,
+.prefecture.active polygon {
+  fill: red !important;
+}
+
+.label-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+
+.pref-label {
+  position: absolute;
+  background: rgba(255,0,0,0.85);
+  color: white;
+  padding: 2px 6px;
+  font-size: 12px;
+  border-radius: 4px;
+  transform: translate(-50%, -50%);
 }
 </style>
 </head>
 
 <body>
 
-<svg id="map" viewBox="0 0 1200 900">
+<div class="wrapper">
 
-<!-- ========================= -->
-<!-- ★ あなたの <g>群 をここに貼る ★ -->
-<!-- ========================= -->
+  <div class="left">
+    <object id="map" type="image/svg+xml" data="map-mobile.svg"></object>
+    <div class="label-layer" id="labels"></div>
+  </div>
 
-</svg>
+  <div class="right" id="buttonArea"></div>
+
+</div>
 
 <script>
 
-const svg = d3.select("#map");
+const selected = new Set();
 
-// レイヤー
-const mapLayer = svg.append("g");
-const labelLayer = svg.append("g");
+const object = document.getElementById("map");
 
-// 既存のgを全部mapLayerへ移動
-const originalGroups = svg.selectAll(":scope > g");
-mapLayer.node().append(...originalGroups.nodes());
+object.addEventListener("load", function() {
 
-// クリックで赤
-mapLayer.selectAll("g")
-  .classed("prefecture", true)
-  .on("click", function(){
-    d3.select(this)
-      .classed("selected",
-        !d3.select(this).classed("selected"));
+  const svgDoc = object.contentDocument;
+  const prefectures = svgDoc.querySelectorAll("g[data-code]");
+  const buttonArea = document.getElementById("buttonArea");
+
+  prefectures.forEach(pref => {
+
+    pref.classList.add("prefecture");
+
+    const title = pref.querySelector("title")?.textContent || "";
+    const name = title.split("/")[0].trim();
+    const key = pref.classList[0];
+
+    // ボタン生成
+    const btn = document.createElement("button");
+    btn.textContent = name;
+    btn.dataset.key = key;
+    buttonArea.appendChild(btn);
+
+    btn.addEventListener("click", () => togglePref(pref, btn, name));
+    pref.addEventListener("click", () => togglePref(pref, btn, name));
+
   });
-
-// ===== ラベル生成 =====
-mapLayer.selectAll("g").each(function(){
-
-  const group = d3.select(this);
-  const title = group.select("title").text();
-
-  if(!title) return;
-
-  const name = title.split(" / ")[0];
-
-  const bbox = this.getBBox();
-  const cx = bbox.x + bbox.width/2;
-  const cy = bbox.y + bbox.height/2;
-
-  labelLayer.append("text")
-    .attr("class","label")
-    .attr("data-x",cx)
-    .attr("data-y",cy)
-    .attr("x",cx)
-    .attr("y",cy)
-    .text(name);
 });
 
-// ===== ズーム制御 =====
-const bounds = mapLayer.node().getBBox();
 
-const width = window.innerWidth;
-const height = window.innerHeight;
+function togglePref(pref, btn, name) {
 
-const mapWidth = bounds.width;
-const mapHeight = bounds.height;
+  const key = btn.dataset.key;
+  const labels = document.getElementById("labels");
 
-const minScale = Math.min(
-  width/mapWidth,
-  height/mapHeight
-);
+  if (selected.has(key)) {
+    selected.delete(key);
+    pref.classList.remove("active");
+    btn.classList.remove("active");
 
-const initialX =
-  (width - mapWidth*minScale)/2
-  - bounds.x*minScale;
+    const label = document.getElementById("label-" + key);
+    if (label) label.remove();
 
-const initialY =
-  (height - mapHeight*minScale)/2
-  - bounds.y*minScale;
+  } else {
+    selected.add(key);
+    pref.classList.add("active");
+    btn.classList.add("active");
 
-const zoom = d3.zoom()
-  .scaleExtent([minScale,8])
-  .on("zoom",(event)=>{
+    // 中心座標取得
+    const bbox = pref.getBBox();
+    const svg = pref.ownerSVGElement;
 
-    mapLayer.attr("transform",event.transform);
+    const pt = svg.createSVGPoint();
+    pt.x = bbox.x + bbox.width / 2;
+    pt.y = bbox.y + bbox.height / 2;
 
-    labelLayer.selectAll("text")
-      .attr("x",function(){
-        return event.transform.applyX(
-          +d3.select(this).attr("data-x")
-        );
-      })
-      .attr("y",function(){
-        return event.transform.applyY(
-          +d3.select(this).attr("data-y")
-        );
-      });
+    const screenCTM = pref.getScreenCTM();
+    const transformed = pt.matrixTransform(screenCTM);
 
-  });
+    const containerRect = document.querySelector(".left").getBoundingClientRect();
 
-svg.call(zoom);
+    const label = document.createElement("div");
+    label.className = "pref-label";
+    label.id = "label-" + key;
+    label.textContent = name;
 
-svg.call(
-  zoom.transform,
-  d3.zoomIdentity
-    .translate(initialX,initialY)
-    .scale(minScale)
-);
+    label.style.left = (transformed.x - containerRect.left) + "px";
+    label.style.top = (transformed.y - containerRect.top) + "px";
+
+    labels.appendChild(label);
+  }
+}
 
 </script>
 
