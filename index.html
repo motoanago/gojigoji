@@ -30,15 +30,16 @@ body {
 .list-area {
   width: 30%;
   overflow-y: auto;
-  padding: 20px;
+  padding: 15px;
   background: #ffffff;
   border-left: 2px solid #b5dfff;
 }
 
+/* ボタン（通常） */
 .pref-btn {
   width: 100%;
-  padding: 6px 8px;
-  margin-bottom: 5px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
   border: 1px solid #ccc;
   background: #f8f8f8;
   cursor: pointer;
@@ -75,15 +76,11 @@ svg {
   transition: 0.2s;
 }
 
-.prefecture:hover {
-  fill: #ffaaaa;
-}
-
 .prefecture.active {
   fill: red !important;
 }
 
-/* ===== スマホ（幅768px以下は強制縦レイアウト） ===== */
+/* ===== スマホ（縦） ===== */
 
 @media screen and (max-width: 768px) {
 
@@ -91,13 +88,13 @@ svg {
     flex-direction: column;
   }
 
-  /* 上80% マップ */
+  /* マップ 80% */
   .map-area {
     width: 100%;
     height: 80vh;
   }
 
-  /* 下20% ボタン固定 */
+  /* 下20%固定 */
   .list-area {
     position: fixed;
     bottom: 0;
@@ -105,22 +102,20 @@ svg {
     width: 100%;
     height: 20vh;
 
-    display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
+    overflow-y: auto;     /* ← 縦スクロール */
+    overflow-x: hidden;   /* ← 横スクロール禁止 */
 
-    padding: 10px;
+    padding: 8px;
     background: #ffffff;
     border-top: 2px solid #b5dfff;
     border-left: none;
   }
 
+  /* ボタンを小さく */
   .pref-btn {
-    min-width: 120px;
-    margin-right: 8px;
-    flex-shrink: 0;
     font-size: 13px;
+    padding: 5px 8px;
+    margin-bottom: 5px;
   }
 
 }
@@ -218,7 +213,6 @@ prefectures.forEach(pref => {
 function togglePref(id) {
   const mapEl = document.querySelector("g." + id);
   const btnEl = document.querySelector(`[data-pref="${id}"]`);
-
   if (!mapEl) return;
 
   mapEl.classList.toggle("active");
