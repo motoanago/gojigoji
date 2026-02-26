@@ -12,19 +12,24 @@ body {
   background: #e6f4ff;
 }
 
+/* ===== 共通 ===== */
+
 .container {
   display: flex;
   height: 100vh;
+  overflow: hidden; /* はみ出し防止 */
 }
 
-/* ===== PC表示 ===== */
+/* ===== PC・横画面 ===== */
 
 .map-area {
   width: 70%;
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
   background: #d0ecff;
+  overflow: hidden;
 }
 
 .list-area {
@@ -35,7 +40,7 @@ body {
   border-left: 2px solid #b5dfff;
 }
 
-/* ボタン（通常） */
+/* ボタン */
 .pref-btn {
   width: 100%;
   padding: 6px 10px;
@@ -64,11 +69,14 @@ body {
   color: #fff;
 }
 
+/* SVG制御（はみ出し防止） */
 svg {
   width: 90%;
+  max-height: 95%;
   height: auto;
 }
 
+/* 都道府県 */
 .prefecture {
   fill: #EEEEEE;
   stroke: #000;
@@ -76,11 +84,15 @@ svg {
   transition: 0.2s;
 }
 
+.prefecture:hover {
+  fill: #ffaaaa;
+}
+
 .prefecture.active {
   fill: red !important;
 }
 
-/* ===== スマホ（縦） ===== */
+/* ===== スマホ縦 ===== */
 
 @media screen and (max-width: 768px) {
 
@@ -91,7 +103,7 @@ svg {
   /* マップ 80% */
   .map-area {
     width: 100%;
-    height: 80vh;
+    flex: 1;
   }
 
   /* 下20%固定 */
@@ -102,8 +114,8 @@ svg {
     width: 100%;
     height: 20vh;
 
-    overflow-y: auto;     /* ← 縦スクロール */
-    overflow-x: hidden;   /* ← 横スクロール禁止 */
+    overflow-y: auto;
+    overflow-x: hidden;
 
     padding: 8px;
     background: #ffffff;
@@ -111,13 +123,11 @@ svg {
     border-left: none;
   }
 
-  /* ボタンを小さく */
   .pref-btn {
     font-size: 13px;
     padding: 5px 8px;
     margin-bottom: 5px;
   }
-
 }
 </style>
 </head>
