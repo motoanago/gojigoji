@@ -11,16 +11,21 @@ body{
   font-family:sans-serif;
 }
 
-svg{
+#map-container{
   width:100%;
   height:100vh;
 }
 
+svg{
+  width:100%;
+  height:100%;
+}
+
 .prefecture text{
   font-size:14px;
-  pointer-events:none;
   fill:#222;
   font-weight:bold;
+  pointer-events:none;
 }
 
 .prefecture{
@@ -40,15 +45,17 @@ svg{
 
 <body>
 
-<!-- あなたのSVGをここに貼る -->
-<!-- 例： -->
-<object id="svgObject" type="image/svg+xml" data="map-full.svg"></object>
+<div id="map-container"></div>
 
 <script>
-document.getElementById("svgObject").addEventListener("load", function(){
+fetch("map-mobile.svg")
+.then(res => res.text())
+.then(data => {
 
-  const svgDoc = this.contentDocument;
-  const prefs = svgDoc.querySelectorAll(".prefecture");
+  document.getElementById("map-container").innerHTML = data;
+
+  const svg = document.querySelector("svg");
+  const prefs = svg.querySelectorAll(".prefecture");
 
   prefs.forEach(pref => {
 
@@ -57,30 +64,48 @@ document.getElementById("svgObject").addEventListener("load", function(){
 
     const name = title.textContent.split("/")[0].trim();
 
-    // ===== transform込みの実サイズ取得 =====
-    const rect = pref.getBoundingClientRect();
+    let targetElement = pref;
 
-    // SVG内部座標に変換する
-    const svg = svgDoc.querySelector("svg");
-    const pt = svg.createSVGPoint();
-    pt.x = rect.left + rect.width/2;
-    pt.y = rect.top + rect.height/2;
+    // ===== 東京と鹿児島だけ特別処理 =====
+    if(name === "東京" || name === "鹿児島"){
 
-    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      const paths = pref.querySelectorAll("path, polygon");
 
-    const text = svgDoc.createElementNS("http://www.w3.org/2000/svg","text");
-    text.setAttribute("x", svgP.x);
-    text.setAttribute("y", svgP.y);
+      let largest = null;
+      let maxArea = 0;
+
+      paths.forEach(p=>{
+        const b = p.getBBox();
+        const area = b.width * b.height;
+        if(area > maxArea){
+          maxArea = area;
+          largest = p;
+        }
+      });
+
+      if(largest){
+        targetElement = largest;
+      }
+    }
+
+    const bbox = targetElement.getBBox();
+
+    const x = bbox.x + bbox.width / 2;
+    const y = bbox.y + bbox.height / 2;
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+    text.setAttribute("x", x);
+    text.setAttribute("y", y);
     text.setAttribute("text-anchor","middle");
     text.setAttribute("dominant-baseline","middle");
+
     text.textContent = name
-        .replace("県","")
-        .replace("府","")
-        .replace("都","");
+      .replace("県","")
+      .replace("府","")
+      .replace("都","");
 
     pref.appendChild(text);
 
-    // クリックで色変更
     pref.addEventListener("click", ()=>{
       pref.classList.toggle("active");
     });
