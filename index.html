@@ -1,151 +1,137 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
 <title>Japan Map</title>
-
+<script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
-body{
-  margin:0;
-  background:#f5f7fa;
-  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+body {
+  margin: 0;
+  overflow: hidden;
 }
 
-#map-container{
-  width:100%;
-  max-width:900px;
-  margin:auto;
+svg {
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
 }
 
-svg{
-  width:100%;
-  height:auto;
+.prefecture {
+  fill: white;
+  stroke: #333;
+  stroke-width: 0.5;
+  cursor: pointer;
 }
 
-/* 県のスタイル */
-.prefecture path{
-  fill:#ffffff;
-  stroke:#333;
-  stroke-width:1;
-  transition: fill .2s ease;
-  cursor:pointer;
+.prefecture.selected {
+  fill: red;
 }
 
-/* 選択中 */
-.prefecture.active path{
-  fill:#4da3ff !important;
-}
-
-/* ラベル */
-.pref-label{
-  font-size:11px;
-  font-weight:500;   /* ← 少し細く */
-  fill:#222;
-  pointer-events:none;
-  text-anchor:middle;
-  dominant-baseline:middle;
+.label {
+  font-size: 10px;
+  text-anchor: middle;
+  pointer-events: none;
+  fill: black;
 }
 </style>
 </head>
-
 <body>
 
-<div id="map-container"></div>
+<svg id="map"></svg>
 
 <script>
-fetch("map-mobile.svg")
-.then(res => res.text())
-.then(svgText => {
 
-  document.getElementById("map-container").innerHTML = svgText;
-  const svg = document.querySelector("svg");
+const width = window.innerWidth;
+const height = window.innerHeight;
 
-  const prefectures = svg.querySelectorAll(".prefecture");
+const svg = d3.select("#map");
+const g = svg.append("g");
+const labelLayer = svg.append("g"); // 文字は別レイヤー（拡大縮小しない）
 
-  prefectures.forEach(pref => {
+const projection = d3.geoMercator()
+  .center([137, 38])
+  .scale(1800)
+  .translate([width / 2, height / 2]);
 
-    const name = pref.getAttribute("data-name") || "";
+const path = d3.geoPath().projection(projection);
 
-    const paths = pref.querySelectorAll("path");
-    let x = 0;
-    let y = 0;
+d3.json("https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson")
+.then(function(data) {
 
-    /* =========================
-       東京だけ特別処理
-    ========================== */
-    if(name === "東京"){
-
-      let mainlandBox = null;
-
-      paths.forEach(p=>{
-        const b = p.getBBox();
-
-        // 東京本土は上部にある（島は下に伸びている）
-        if(b.y < 80 && b.width > 20){
-          mainlandBox = b;
-        }
-      });
-
-      if(mainlandBox){
-        x = mainlandBox.x + mainlandBox.width / 2;
-        y = mainlandBox.y + mainlandBox.height / 2;
-      }
-
-    }else{
-
-      // 通常は一番大きい面積のパスを使用
-      let largest = null;
-      let maxArea = 0;
-
-      paths.forEach(p=>{
-        const b = p.getBBox();
-        const area = b.width * b.height;
-        if(area > maxArea){
-          maxArea = area;
-          largest = b;
-        }
-      });
-
-      if(largest){
-        x = largest.x + largest.width / 2;
-        y = largest.y + largest.height / 2;
-      }
-    }
-
-    /* =========================
-       ラベル生成
-    ========================== */
-    if(name){
-      const text = document.createElementNS("http://www.w3.org/2000/svg","text");
-      text.setAttribute("x", x);
-      text.setAttribute("y", y);
-      text.setAttribute("class","pref-label");
-      text.textContent = name;
-      svg.appendChild(text);
-    }
-
-    /* =========================
-       クリック処理（色残り防止）
-    ========================== */
-    pref.addEventListener("click", function(){
-
-      // 全解除
-      prefectures.forEach(p=>{
-        p.classList.remove("active");
-        const ps = p.querySelectorAll("path");
-        ps.forEach(path=>{
-          path.style.fill = "";  // ← 完全リセット
-        });
-      });
-
-      // 選択
-      this.classList.add("active");
+  // ---- 都道府県描画 ----
+  const prefectures = g.selectAll("path")
+    .data(data.features)
+    .enter()
+    .append("path")
+    .attr("class", "prefecture")
+    .attr("d", path)
+    .on("click", function() {
+      d3.select(this).classed("selected",
+        !d3.select(this).classed("selected"));
     });
 
-  });
+  // ---- ラベル（常に表示）----
+  const labels = labelLayer.selectAll("text")
+    .data(data.features)
+    .enter()
+    .append("text")
+    .attr("class", "label")
+    .attr("x", d => path.centroid(d)[0])
+    .attr("y", d => path.centroid(d)[1])
+    .text(d => d.properties.name_ja || d.properties.name);
+
+  // ---- 全体の範囲取得 ----
+  const bounds = g.node().getBBox();
+
+  const mapWidth = bounds.width;
+  const mapHeight = bounds.height;
+
+  // ---- 最小スケール計算（左右と上が画面を超えない）----
+  const scaleX = width / mapWidth;
+  const scaleY = height / mapHeight;
+
+  const minScale = Math.min(scaleX, scaleY);
+
+  // ---- 初期中央位置調整 ----
+  const initialX = (width - mapWidth * minScale) / 2 - bounds.x * minScale;
+  const initialY = (height - mapHeight * minScale) / 2 - bounds.y * minScale;
+
+  const zoom = d3.zoom()
+    .scaleExtent([minScale, 8]) // 最小以下に縮小不可
+    .translateExtent([
+      [bounds.x * minScale, bounds.y * minScale],
+      [(bounds.x + mapWidth) * minScale,
+       (bounds.y + mapHeight) * minScale]
+    ])
+    .on("zoom", (event) => {
+
+      g.attr("transform", event.transform);
+
+      // ---- ラベルは縮尺に合わせて再配置（サイズ固定）----
+      labelLayer.selectAll("text")
+        .attr("x", d => {
+          const [x, y] = path.centroid(d);
+          return event.transform.applyX(x);
+        })
+        .attr("y", d => {
+          const [x, y] = path.centroid(d);
+          return event.transform.applyY(y);
+        });
+
+    });
+
+  svg.call(zoom);
+
+  // ---- 初期表示 ----
+  svg.call(
+    zoom.transform,
+    d3.zoomIdentity
+      .translate(initialX, initialY)
+      .scale(minScale)
+  );
 
 });
+
 </script>
 
 </body>
