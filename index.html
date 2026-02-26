@@ -1,138 +1,233 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-<meta charset="utf-8">
-<title>Japan Map</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>都道府県マップ</title>
+
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
+body{
+  margin:0;
+  font-family:sans-serif;
+  text-align:center;
+  background:#f5f5f5;
 }
 
-svg {
-  width: 100vw;
-  height: 100vh;
-  touch-action: none;
+#map-container{
+  width:100%;
+  height:80vh;
+  overflow:hidden;
+  touch-action:none;
 }
 
-.prefecture {
-  fill: white;
-  stroke: #333;
-  stroke-width: 0.5;
-  cursor: pointer;
+svg{
+  width:100%;
+  height:100%;
 }
 
-.prefecture.selected {
-  fill: red;
+.prefecture{
+  fill:white;
+  stroke:#333;
+  stroke-width:1;
 }
 
-.label {
-  font-size: 10px;
-  text-anchor: middle;
-  pointer-events: none;
-  fill: black;
+.prefecture.active{
+  fill:red;
+}
+
+text{
+  pointer-events:none;
+  fill:#000;
+  stroke:#fff;
+  stroke-width:3;
+  paint-order:stroke;
+  font-size:14px;
 }
 </style>
 </head>
+
 <body>
 
-<svg id="map"></svg>
+<h1>あいかのにほんせいは</h1>
+<div id="map-container"></div>
 
 <script>
+const container = document.getElementById("map-container");
 
-const width = window.innerWidth;
-const height = window.innerHeight;
+let scale = 1;            // 1が最小（全体表示）
+let translateX = 0;
+let translateY = 0;
 
-const svg = d3.select("#map");
-const g = svg.append("g");
-const labelLayer = svg.append("g"); // 文字は別レイヤー（拡大縮小しない）
+let isDragging = false;
+let isPinching = false;
 
-const projection = d3.geoMercator()
-  .center([137, 38])
-  .scale(1800)
-  .translate([width / 2, height / 2]);
+let startX = 0;
+let startY = 0;
 
-const path = d3.geoPath().projection(projection);
+let initialScale = 1;
+let initialDistance = 0;
 
-d3.json("https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson")
-.then(function(data) {
+let g, svg;
 
-  // ---- 都道府県描画 ----
-  const prefectures = g.selectAll("path")
-    .data(data.features)
-    .enter()
-    .append("path")
-    .attr("class", "prefecture")
-    .attr("d", path)
-    .on("click", function() {
-      d3.select(this).classed("selected",
-        !d3.select(this).classed("selected"));
+fetch("map-full.svg")
+.then(res=>res.text())
+.then(data=>{
+
+  container.innerHTML = data;
+  svg = container.querySelector("svg");
+
+  if(!svg.hasAttribute("viewBox")){
+    const w = svg.getAttribute("width");
+    const h = svg.getAttribute("height");
+    svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
+  }
+
+  // すべてをgで包む
+  g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  while(svg.firstChild){
+    g.appendChild(svg.firstChild);
+  }
+  svg.appendChild(g);
+
+  const prefs = g.querySelectorAll(".prefecture");
+
+  // ===== 県名追加 =====
+  prefs.forEach(pref=>{
+
+    const title = pref.querySelector("title");
+    if(!title) return;
+
+    const name = title.textContent.split("/")[0].trim();
+    const bbox = pref.getBBox();
+
+    let x = bbox.x + bbox.width / 2;
+    let y = bbox.y + bbox.height / 2;
+
+    // ★ 鹿児島県と東京都だけ上端に表示
+    if(name === "鹿児島県" || name === "東京都"){
+      y = bbox.y + 15; // 上端＋少し下（調整可）
+    }
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+    text.setAttribute("x", x);
+    text.setAttribute("y", y);
+    text.setAttribute("text-anchor","middle");
+    text.setAttribute("dominant-baseline","middle");
+    text.textContent = name;
+
+    pref.appendChild(text);
+
+    // ★ 複数選択（赤）
+    pref.addEventListener("click",()=>{
+      pref.classList.toggle("active");
     });
+  });
 
-  // ---- ラベル（常に表示）----
-  const labels = labelLayer.selectAll("text")
-    .data(data.features)
-    .enter()
-    .append("text")
-    .attr("class", "label")
-    .attr("x", d => path.centroid(d)[0])
-    .attr("y", d => path.centroid(d)[1])
-    .text(d => d.properties.name_ja || d.properties.name);
+  updateTransform();
 
-  // ---- 全体の範囲取得 ----
-  const bounds = g.node().getBBox();
+  // ===== タッチ開始 =====
+  container.addEventListener("touchstart", e=>{
 
-  const mapWidth = bounds.width;
-  const mapHeight = bounds.height;
+    if(e.touches.length===2){
+      isPinching = true;
+      initialDistance = getDistance(e.touches);
+      initialScale = scale;
+    }
 
-  // ---- 最小スケール計算（左右と上が画面を超えない）----
-  const scaleX = width / mapWidth;
-  const scaleY = height / mapHeight;
+    if(e.touches.length===1){
+      isDragging = true;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }
+  });
 
-  const minScale = Math.min(scaleX, scaleY);
+  // ===== タッチ移動 =====
+  container.addEventListener("touchmove", e=>{
 
-  // ---- 初期中央位置調整 ----
-  const initialX = (width - mapWidth * minScale) / 2 - bounds.x * minScale;
-  const initialY = (height - mapHeight * minScale) / 2 - bounds.y * minScale;
+    // ピンチ拡大
+    if(e.touches.length===2){
 
-  const zoom = d3.zoom()
-    .scaleExtent([minScale, 8]) // 最小以下に縮小不可
-    .translateExtent([
-      [bounds.x * minScale, bounds.y * minScale],
-      [(bounds.x + mapWidth) * minScale,
-       (bounds.y + mapHeight) * minScale]
-    ])
-    .on("zoom", (event) => {
+      e.preventDefault();
 
-      g.attr("transform", event.transform);
+      const newDistance = getDistance(e.touches);
+      let newScale = initialScale * (newDistance / initialDistance);
 
-      // ---- ラベルは縮尺に合わせて再配置（サイズ固定）----
-      labelLayer.selectAll("text")
-        .attr("x", d => {
-          const [x, y] = path.centroid(d);
-          return event.transform.applyX(x);
-        })
-        .attr("y", d => {
-          const [x, y] = path.centroid(d);
-          return event.transform.applyY(y);
-        });
+      // 縮小禁止、最大4倍
+      newScale = Math.max(1, Math.min(newScale,4));
 
-    });
+      const pt = svg.createSVGPoint();
+      pt.x = (e.touches[0].clientX + e.touches[1].clientX)/2;
+      pt.y = (e.touches[0].clientY + e.touches[1].clientY)/2;
 
-  svg.call(zoom);
+      const svgPoint = pt.matrixTransform(svg.getScreenCTM().inverse());
 
-  // ---- 初期表示 ----
-  svg.call(
-    zoom.transform,
-    d3.zoomIdentity
-      .translate(initialX, initialY)
-      .scale(minScale)
-  );
+      translateX = svgPoint.x - (svgPoint.x - translateX)*(newScale/scale);
+      translateY = svgPoint.y - (svgPoint.y - translateY)*(newScale/scale);
+
+      scale = newScale;
+      updateTransform();
+    }
+
+    // ドラッグ
+    else if(e.touches.length===1 && isDragging){
+
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+
+      translateX += dx;
+      translateY += dy;
+
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+
+      updateTransform();
+    }
+
+  });
+
+  container.addEventListener("touchend",()=>{
+    isDragging = false;
+    isPinching = false;
+  });
 
 });
 
+function updateTransform(){
+
+  const viewBox = svg.viewBox.baseVal;
+
+  const contentWidth  = viewBox.width * scale;
+  const contentHeight = viewBox.height * scale;
+
+  const rect = container.getBoundingClientRect();
+  const containerW = rect.width;
+  const containerH = rect.height;
+
+  if(scale === 1){
+    translateX = 0;
+    translateY = 0;
+  }
+  else{
+    const minX = containerW - contentWidth;
+    const minY = containerH - contentHeight;
+
+    translateX = Math.min(0, Math.max(minX, translateX));
+    translateY = Math.min(0, Math.max(minY, translateY));
+  }
+
+  g.setAttribute(
+    "transform",
+    `translate(${translateX},${translateY}) scale(${scale})`
+  );
+}
+
+function getDistance(touches){
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
+}
 </script>
 
 </body>
 </html>
+
