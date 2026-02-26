@@ -8,10 +8,11 @@
 body{
   margin:0;
   background:#f5f5f5;
-  font-family: "Hiragino Kaku Gothic ProN", 
-               "Yu Gothic", 
-               "Noto Sans JP", 
-               sans-serif;
+  font-family:
+    "Hiragino Kaku Gothic ProN",
+    "Yu Gothic",
+    "Noto Sans JP",
+    sans-serif;
 }
 
 #map-container{
@@ -27,27 +28,15 @@ svg{
 /* 都道府県 */
 .prefecture{
   cursor:pointer;
-  transition:fill 0.2s ease;
-  fill:#ffffff;
   stroke:#333;
   stroke-width:1;
 }
 
-/* hoverはactiveでない時のみ */
-.prefecture:hover:not(.active){
-  fill:#dceeff;
-}
-
-/* 選択状態 */
-.prefecture.active{
-  fill:#66aaff !important;
-}
-
-/* 県名テキスト */
+/* テキスト */
 .prefecture text{
   font-size:13px;
   fill:#111;
-  font-weight:300;   /* ← 太さを軽めに */
+  font-weight:300;
   pointer-events:none;
 }
 </style>
@@ -74,11 +63,15 @@ fetch("map-mobile.svg")
 
     const name = title.textContent.split("/")[0].trim();
 
+    // ===== 初期色を強制リセット =====
+    pref.querySelectorAll("path, polygon").forEach(el=>{
+      el.style.fill = "#ffffff";
+    });
+
     let targetElement = pref;
 
-    // ===== 鹿児島は最大面積パス（本土）を使用 =====
+    // ===== 鹿児島は最大面積 =====
     if(name === "鹿児島"){
-
       const paths = pref.querySelectorAll("path, polygon");
 
       let largest = null;
@@ -93,20 +86,33 @@ fetch("map-mobile.svg")
         }
       });
 
-      if(largest){
-        targetElement = largest;
-      }
+      if(largest) targetElement = largest;
     }
 
     const bbox = targetElement.getBBox();
-
     let x = bbox.x + bbox.width / 2;
     let y = bbox.y + bbox.height / 2;
 
-    // ===== 東京だけ微調整（離島補正） =====
+    // ===== 東京は本土だけ取得 =====
     if(name === "東京"){
-      x = bbox.x + bbox.width * 0.56;
-      y = bbox.y + bbox.height * 0.34;
+      const paths = pref.querySelectorAll("path");
+      let mainland = null;
+      let maxArea = 0;
+
+      paths.forEach(p=>{
+        const b = p.getBBox();
+        const area = b.width * b.height;
+        if(area > maxArea){
+          maxArea = area;
+          mainland = p;
+        }
+      });
+
+      if(mainland){
+        const b = mainland.getBBox();
+        x = b.x + b.width / 2;
+        y = b.y + b.height / 2;
+      }
     }
 
     const text = document.createElementNS("http://www.w3.org/2000/svg","text");
@@ -122,9 +128,34 @@ fetch("map-mobile.svg")
 
     pref.appendChild(text);
 
-    // クリックで選択切替
+    // ===== クリック制御（完全色管理）=====
+    let selected = false;
+
     pref.addEventListener("click", ()=>{
-      pref.classList.toggle("active");
+
+      selected = !selected;
+
+      pref.querySelectorAll("path, polygon").forEach(el=>{
+        el.style.fill = selected ? "#66aaff" : "#ffffff";
+      });
+
+    });
+
+    // ===== hover制御 =====
+    pref.addEventListener("mouseenter", ()=>{
+      if(!selected){
+        pref.querySelectorAll("path, polygon").forEach(el=>{
+          el.style.fill = "#dceeff";
+        });
+      }
+    });
+
+    pref.addEventListener("mouseleave", ()=>{
+      if(!selected){
+        pref.querySelectorAll("path, polygon").forEach(el=>{
+          el.style.fill = "#ffffff";
+        });
+      }
     });
 
   });
@@ -134,4 +165,3 @@ fetch("map-mobile.svg")
 
 </body>
 </html>
-
