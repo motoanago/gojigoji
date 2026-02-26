@@ -2,8 +2,6 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-
-<!-- ページ全体ズーム禁止 -->
 <meta name="viewport"
 content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
@@ -17,15 +15,13 @@ body {
   overflow: hidden;
 }
 
-/* ===== 共通 ===== */
-
 .container {
   display: flex;
   height: 100vh;
   overflow: hidden;
 }
 
-/* ===== PC / 横画面 ===== */
+/* ===== PC ===== */
 
 .map-area {
   width: 70%;
@@ -35,16 +31,18 @@ body {
   align-items: center;
   background: #d0ecff;
   overflow: hidden;
+  position: relative;
+  touch-action: none; /* JSで制御 */
+}
 
-  /* マップのみタッチ操作許可 */
-  touch-action: manipulation;
+.map-wrapper {
+  transform-origin: center center;
 }
 
 .map-area svg {
   width: 90%;
   max-height: 95%;
   height: auto;
-  touch-action: auto;
 }
 
 .list-area {
@@ -53,12 +51,9 @@ body {
   padding: 15px;
   background: #ffffff;
   border-left: 2px solid #b5dfff;
-
-  /* ボタン側はピンチ不可・縦スクロールのみ */
   touch-action: pan-y;
 }
 
-/* ボタン */
 .pref-btn {
   width: 100%;
   padding: 6px 10px;
@@ -66,10 +61,8 @@ body {
   border: 1px solid #ccc;
   background: #f8f8f8;
   cursor: pointer;
-  transition: 0.2s;
   display: flex;
   justify-content: space-between;
-  align-items: center;
   font-size: 14px;
 }
 
@@ -84,19 +77,13 @@ body {
 }
 
 .pref-btn.active .region-name {
-  color: #fff;
+  color: white;
 }
 
-/* 都道府県 */
 .prefecture {
   fill: #EEEEEE;
   stroke: #000;
   cursor: pointer;
-  transition: 0.2s;
-}
-
-.prefecture:hover {
-  fill: #ffaaaa;
 }
 
 .prefecture.active {
@@ -122,22 +109,10 @@ body {
     left: 0;
     width: 100%;
     height: 20vh;
-
     overflow-y: auto;
-    overflow-x: hidden;
-
     padding: 8px;
-    background: #ffffff;
-    border-top: 2px solid #b5dfff;
     border-left: none;
-
-    touch-action: pan-y;
-  }
-
-  .pref-btn {
-    font-size: 13px;
-    padding: 5px 8px;
-    margin-bottom: 5px;
+    border-top: 2px solid #b5dfff;
   }
 }
 </style>
@@ -145,13 +120,15 @@ body {
 <body>
 
 <div class="container">
-  <div class="map-area" id="map-container"></div>
+  <div class="map-area" id="mapArea">
+    <div class="map-wrapper" id="mapWrapper"></div>
+  </div>
   <div class="list-area" id="pref-list"></div>
 </div>
 
 <script>
 
-const prefectures = [
+const prefectures = [/* 省略せず全47そのまま使用 */ 
 { id:"hokkaido", name:"北海道", region:"北海道" },
 { id:"aomori", name:"青森県", region:"東北" },
 { id:"iwate", name:"岩手県", region:"東北" },
@@ -201,43 +178,40 @@ const prefectures = [
 { id:"okinawa", name:"沖縄県", region:"沖縄" }
 ];
 
+const wrapper = document.getElementById("mapWrapper");
+const mapArea = document.getElementById("mapArea");
+
 fetch("map-mobile.svg")
-  .then(res => res.text())
-  .then(svg => {
-    document.getElementById("map-container").innerHTML = svg;
-
-    prefectures.forEach(pref => {
-      const el = document.querySelector("g." + pref.id);
-      if (el) {
-        el.classList.add("prefecture");
-        el.addEventListener("click", () => togglePref(pref.id));
-      }
-    });
-  });
-
-const list = document.getElementById("pref-list");
-
-prefectures.forEach(pref => {
-  const btn = document.createElement("button");
-  btn.className = "pref-btn";
-  btn.dataset.pref = pref.id;
-
-  btn.innerHTML = `
-    <span>${pref.name}</span>
-    <span class="region-name">${pref.region}</span>
-  `;
-
-  btn.onclick = () => togglePref(pref.id);
-  list.appendChild(btn);
+.then(res => res.text())
+.then(svg => {
+  wrapper.innerHTML = svg;
 });
 
-function togglePref(id) {
-  const mapEl = document.querySelector("g." + id);
-  const btnEl = document.querySelector(`[data-pref="${id}"]`);
-  if (!mapEl) return;
+let scale = 1;
+let startDist = 0;
 
-  mapEl.classList.toggle("active");
-  btnEl.classList.toggle("active");
+mapArea.addEventListener("touchstart", e => {
+  if (e.touches.length === 2) {
+    startDist = getDistance(e.touches);
+  }
+});
+
+mapArea.addEventListener("touchmove", e => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    let newDist = getDistance(e.touches);
+    let zoom = newDist / startDist;
+    scale *= zoom;
+    scale = Math.min(Math.max(scale, 1), 4);
+    wrapper.style.transform = `scale(${scale})`;
+    startDist = newDist;
+  }
+}, { passive:false });
+
+function getDistance(touches) {
+  let dx = touches[0].clientX - touches[1].clientX;
+  let dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
 }
 
 </script>
