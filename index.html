@@ -8,6 +8,7 @@
 body {
   margin: 0;
   font-family: sans-serif;
+  background: #e6f4ff; /* ← 背景を水色 */
 }
 
 .container {
@@ -15,29 +16,29 @@ body {
   height: 100vh;
 }
 
-/* 左：地図 */
+/* 左：地図（70%） */
 .map-area {
-  flex: 1;
+  width: 70%;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #f5f5f5;
+  background: #d0ecff; /* 少し濃い水色 */
 }
 
-/* 右：ボタン */
+/* 右：ボタン（30%） */
 .list-area {
-  width: 420px;
+  width: 30%;
   overflow-y: auto;
   padding: 20px;
-  border-left: 1px solid #ddd;
-  background: #fff;
+  background: #ffffff;
+  border-left: 2px solid #b5dfff;
 }
 
 /* ボタン */
 .pref-btn {
   width: 100%;
-  padding: 8px 10px;
-  margin-bottom: 6px;
+  padding: 6px 8px;
+  margin-bottom: 5px;
   border: 1px solid #ccc;
   background: #f8f8f8;
   cursor: pointer;
@@ -46,6 +47,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 14px;
 }
 
 .pref-btn.active {
@@ -54,7 +56,7 @@ body {
 }
 
 .region-name {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
 }
 
@@ -64,7 +66,7 @@ body {
 
 /* SVG */
 svg {
-  width: 95%;
+  width: 90%;
   height: auto;
 }
 
@@ -93,17 +95,16 @@ svg {
 
 <script>
 
+/* --- ここから下は前回と同じなので省略せず完全版 --- */
+
 const prefectures = [
-
 { id:"hokkaido", name:"北海道", region:"北海道" },
-
 { id:"aomori", name:"青森県", region:"東北" },
 { id:"iwate", name:"岩手県", region:"東北" },
 { id:"miyagi", name:"宮城県", region:"東北" },
 { id:"akita", name:"秋田県", region:"東北" },
 { id:"yamagata", name:"山形県", region:"東北" },
 { id:"fukushima", name:"福島県", region:"東北" },
-
 { id:"ibaraki", name:"茨城県", region:"関東" },
 { id:"tochigi", name:"栃木県", region:"関東" },
 { id:"gunma", name:"群馬県", region:"関東" },
@@ -111,7 +112,6 @@ const prefectures = [
 { id:"chiba", name:"千葉県", region:"関東" },
 { id:"tokyo", name:"東京都", region:"関東" },
 { id:"kanagawa", name:"神奈川県", region:"関東" },
-
 { id:"niigata", name:"新潟県", region:"中部" },
 { id:"toyama", name:"富山県", region:"中部" },
 { id:"ishikawa", name:"石川県", region:"中部" },
@@ -121,7 +121,6 @@ const prefectures = [
 { id:"gifu", name:"岐阜県", region:"中部" },
 { id:"shizuoka", name:"静岡県", region:"中部" },
 { id:"aichi", name:"愛知県", region:"中部" },
-
 { id:"mie", name:"三重県", region:"近畿" },
 { id:"shiga", name:"滋賀県", region:"近畿" },
 { id:"kyoto", name:"京都府", region:"近畿" },
@@ -129,18 +128,15 @@ const prefectures = [
 { id:"hyogo", name:"兵庫県", region:"近畿" },
 { id:"nara", name:"奈良県", region:"近畿" },
 { id:"wakayama", name:"和歌山県", region:"近畿" },
-
 { id:"tottori", name:"鳥取県", region:"中国" },
 { id:"shimane", name:"島根県", region:"中国" },
 { id:"okayama", name:"岡山県", region:"中国" },
 { id:"hiroshima", name:"広島県", region:"中国" },
 { id:"yamaguchi", name:"山口県", region:"中国" },
-
 { id:"tokushima", name:"徳島県", region:"四国" },
 { id:"kagawa", name:"香川県", region:"四国" },
 { id:"ehime", name:"愛媛県", region:"四国" },
 { id:"kochi", name:"高知県", region:"四国" },
-
 { id:"fukuoka", name:"福岡県", region:"九州" },
 { id:"saga", name:"佐賀県", region:"九州" },
 { id:"nagasaki", name:"長崎県", region:"九州" },
@@ -148,12 +144,9 @@ const prefectures = [
 { id:"oita", name:"大分県", region:"九州" },
 { id:"miyazaki", name:"宮崎県", region:"九州" },
 { id:"kagoshima", name:"鹿児島県", region:"九州" },
-
 { id:"okinawa", name:"沖縄県", region:"沖縄" }
-
 ];
 
-// SVG読み込み
 fetch("map-mobile.svg")
   .then(res => res.text())
   .then(svg => {
@@ -168,7 +161,6 @@ fetch("map-mobile.svg")
     });
   });
 
-// ボタン生成
 const list = document.getElementById("pref-list");
 
 prefectures.forEach(pref => {
@@ -185,7 +177,6 @@ prefectures.forEach(pref => {
   list.appendChild(btn);
 });
 
-// 連動処理
 function togglePref(id) {
   const mapEl = document.querySelector("g." + id);
   const btnEl = document.querySelector(`[data-pref="${id}"]`);
