@@ -37,7 +37,6 @@ body{
 
 .map-wrapper{
   transform-origin:center center;
-  transition:transform 0.05s linear;
 }
 
 .map-area svg{
@@ -135,7 +134,8 @@ body{
 
 <script>
 
-/* ===== 都道府県データ（省略せず使用してください） ===== */
+/* ===== 都道府県データ ===== */
+
 const prefectures = [
 { id:"hokkaido", name:"北海道", region:"北海道" },
 { id:"aomori", name:"青森県", region:"東北" },
@@ -188,6 +188,7 @@ const prefectures = [
 
 
 /* ===== SVG読み込み ===== */
+
 const wrapper=document.getElementById("mapWrapper");
 const mapArea=document.getElementById("mapArea");
 
@@ -195,9 +196,49 @@ fetch("map-mobile.svg")
 .then(r=>r.text())
 .then(svg=>{
   wrapper.innerHTML=svg;
+
+  prefectures.forEach(pref=>{
+    const el=document.querySelector("g."+pref.id);
+    if(el){
+      el.classList.add("prefecture");
+      el.addEventListener("click",()=>togglePref(pref.id));
+    }
+  });
 });
 
-/* ===== ピンチ＋ドラッグ制御 ===== */
+
+/* ===== ボタン生成 ===== */
+
+const list=document.getElementById("pref-list");
+
+prefectures.forEach(pref=>{
+  const btn=document.createElement("button");
+  btn.className="pref-btn";
+  btn.dataset.pref=pref.id;
+
+  btn.innerHTML=`
+    <span>${pref.name}</span>
+    <span class="region-name">${pref.region}</span>
+  `;
+
+  btn.onclick=()=>togglePref(pref.id);
+  list.appendChild(btn);
+});
+
+
+/* ===== 選択処理 ===== */
+
+function togglePref(id){
+  const mapEl=document.querySelector("g."+id);
+  const btnEl=document.querySelector(`[data-pref="${id}"]`);
+  if(!mapEl)return;
+
+  mapEl.classList.toggle("active");
+  btnEl.classList.toggle("active");
+}
+
+
+/* ===== ピンチ＋ドラッグ ===== */
 
 let scale=1;
 let startDist=0;
@@ -207,7 +248,6 @@ let startX=0;
 let startY=0;
 let isDragging=false;
 
-/* ピンチ開始 */
 mapArea.addEventListener("touchstart",e=>{
   if(e.touches.length===2){
     startDist=getDistance(e.touches);
@@ -219,7 +259,6 @@ mapArea.addEventListener("touchstart",e=>{
   }
 });
 
-/* タッチ移動 */
 mapArea.addEventListener("touchmove",e=>{
   if(e.touches.length===2){
     e.preventDefault();
@@ -230,17 +269,14 @@ mapArea.addEventListener("touchmove",e=>{
     startDist=newDist;
     updateTransform();
   }
-
   else if(e.touches.length===1 && isDragging){
     e.preventDefault();
     translateX=e.touches[0].clientX-startX;
     translateY=e.touches[0].clientY-startY;
     updateTransform();
   }
-
 },{passive:false});
 
-/* タッチ終了 */
 mapArea.addEventListener("touchend",()=>{
   isDragging=false;
   if(scale===1){
@@ -250,7 +286,6 @@ mapArea.addEventListener("touchend",()=>{
   }
 });
 
-/* 変形適用 */
 function updateTransform(){
   wrapper.style.transform=
     `translate(${translateX}px,${translateY}px) scale(${scale})`;
