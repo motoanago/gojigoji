@@ -10,10 +10,16 @@ body {
   overflow: hidden;
 }
 
+svg {
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
+}
+
 .prefecture {
   fill: white;
   stroke: #333;
-  stroke-width: 1;
+  stroke-width: 0.5;
   cursor: pointer;
 }
 
@@ -25,6 +31,7 @@ body {
   font-size: 10px;
   text-anchor: middle;
   pointer-events: none;
+  fill: black;
 }
 </style>
 </head>
@@ -37,11 +44,9 @@ body {
 const width = window.innerWidth;
 const height = window.innerHeight;
 
-const svg = d3.select("#map")
-  .attr("width", width)
-  .attr("height", height);
-
+const svg = d3.select("#map");
 const g = svg.append("g");
+const labelLayer = svg.append("g"); // 文字は別レイヤー（拡大縮小しない）
 
 const projection = d3.geoMercator()
   .center([137, 38])
@@ -50,57 +55,82 @@ const projection = d3.geoMercator()
 
 const path = d3.geoPath().projection(projection);
 
-svg.call(
-  d3.zoom()
-    .scaleExtent([1, 8])
-    .on("zoom", (event) => {
-      g.attr("transform", event.transform);
-    })
-);
-
 d3.json("https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson")
-  .then(function(data) {
+.then(function(data) {
 
-    // 沖縄を最下部へ移動（そのまま）
-    data.features.sort((a, b) => {
-      if (a.properties.name === "Okinawa") return 1;
-      if (b.properties.name === "Okinawa") return -1;
-      return 0;
+  // ---- 都道府県描画 ----
+  const prefectures = g.selectAll("path")
+    .data(data.features)
+    .enter()
+    .append("path")
+    .attr("class", "prefecture")
+    .attr("d", path)
+    .on("click", function() {
+      d3.select(this).classed("selected",
+        !d3.select(this).classed("selected"));
     });
 
-    g.selectAll("path")
-      .data(data.features)
-      .enter()
-      .append("path")
-      .attr("class", "prefecture")
-      .attr("d", path)
-      .on("click", function(event, d) {
-        d3.select(this).classed("selected",
-          !d3.select(this).classed("selected"));
-      });
+  // ---- ラベル（常に表示）----
+  const labels = labelLayer.selectAll("text")
+    .data(data.features)
+    .enter()
+    .append("text")
+    .attr("class", "label")
+    .attr("x", d => path.centroid(d)[0])
+    .attr("y", d => path.centroid(d)[1])
+    .text(d => d.properties.name_ja || d.properties.name);
 
-    g.selectAll("text")
-      .data(data.features)
-      .enter()
-      .append("text")
-      .attr("class", "label")
-      .attr("x", d => path.centroid(d)[0])
-      .attr("y", d => {
+  // ---- 全体の範囲取得 ----
+  const bounds = g.node().getBBox();
 
-        let y = path.centroid(d)[1];
+  const mapWidth = bounds.width;
+  const mapHeight = bounds.height;
 
-        // 東京都・鹿児島だけ少し上にずらす
-        if (d.properties.name === "Tokyo" ||
-            d.properties.name === "Kagoshima") {
+  // ---- 最小スケール計算（左右と上が画面を超えない）----
+  const scaleX = width / mapWidth;
+  const scaleY = height / mapHeight;
 
-          y -= 10; // 上へ10pxだけ
-        }
+  const minScale = Math.min(scaleX, scaleY);
 
-        return y;
-      })
-      .text(d => d.properties.name_ja || d.properties.name);
+  // ---- 初期中央位置調整 ----
+  const initialX = (width - mapWidth * minScale) / 2 - bounds.x * minScale;
+  const initialY = (height - mapHeight * minScale) / 2 - bounds.y * minScale;
 
-  });
+  const zoom = d3.zoom()
+    .scaleExtent([minScale, 8]) // 最小以下に縮小不可
+    .translateExtent([
+      [bounds.x * minScale, bounds.y * minScale],
+      [(bounds.x + mapWidth) * minScale,
+       (bounds.y + mapHeight) * minScale]
+    ])
+    .on("zoom", (event) => {
+
+      g.attr("transform", event.transform);
+
+      // ---- ラベルは縮尺に合わせて再配置（サイズ固定）----
+      labelLayer.selectAll("text")
+        .attr("x", d => {
+          const [x, y] = path.centroid(d);
+          return event.transform.applyX(x);
+        })
+        .attr("y", d => {
+          const [x, y] = path.centroid(d);
+          return event.transform.applyY(y);
+        });
+
+    });
+
+  svg.call(zoom);
+
+  // ---- 初期表示 ----
+  svg.call(
+    zoom.transform,
+    d3.zoomIdentity
+      .translate(initialX, initialY)
+      .scale(minScale)
+  );
+
+});
 
 </script>
 
