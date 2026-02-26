@@ -4,100 +4,102 @@
 <meta charset="utf-8">
 <title>Japan SVG Map</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
+
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
+body{
+  margin:0;
+  overflow:hidden;
 }
 
-svg {
-  width: 100vw;
-  height: 100vh;
-  touch-action: none;
+svg{
+  width:100vw;
+  height:100vh;
+  touch-action:none;
+  background:white;
 }
 
-.prefecture {
-  fill: #eeeeee;
-  stroke: #000;
-  stroke-width: 1;
-  cursor: pointer;
-  transition: 0.2s;
+.prefecture{
+  fill:#eeeeee;
+  stroke:#333;
+  stroke-width:1;
+  cursor:pointer;
+  transition:0.2s;
 }
 
-.prefecture:hover {
-  filter: drop-shadow(0 0 6px rgba(0,0,0,0.5));
+.prefecture:hover{
+  fill:#ddd;
 }
 
-.prefecture.selected {
-  fill: red;
+.prefecture.selected{
+  fill:red;
 }
 
-.label {
-  font-size: 12px;
-  text-anchor: middle;
-  pointer-events: none;
-  fill: black;
-  font-weight: bold;
+.label{
+  font-size:12px;
+  font-weight:bold;
+  text-anchor:middle;
+  pointer-events:none;
+  fill:black;
 }
 </style>
 </head>
+
 <body>
 
 <svg id="map" viewBox="0 0 1200 900">
 
-<!-- ===== あなたのSVGをここに貼る ===== -->
-<!-- 例： -->
-<!-- 貼り付け開始 -->
-<!-- ★ ここにあなたが送ってくれた <g>群 をそのまま入れてください ★ -->
-<!-- 貼り付け終了 -->
+<!-- ========================= -->
+<!-- ★ あなたの <g>群 をここに貼る ★ -->
+<!-- ========================= -->
 
 </svg>
 
 <script>
 
 const svg = d3.select("#map");
-const g = svg.append("g");
+
+// レイヤー
+const mapLayer = svg.append("g");
 const labelLayer = svg.append("g");
 
+// 既存のgを全部mapLayerへ移動
+const originalGroups = svg.selectAll(":scope > g");
+mapLayer.node().append(...originalGroups.nodes());
 
-// ===== SVG内の既存グループをまとめる =====
-const original = svg.selectAll("g.prefecture");
-g.node().append(...original.nodes());
-
-
-// ===== クリック選択 =====
-g.selectAll("g")
+// クリックで赤
+mapLayer.selectAll("g")
   .classed("prefecture", true)
-  .on("click", function() {
-    d3.select(this).classed("selected",
-      !d3.select(this).classed("selected"));
+  .on("click", function(){
+    d3.select(this)
+      .classed("selected",
+        !d3.select(this).classed("selected"));
   });
 
-
-// ===== ラベル生成（titleから日本語抽出）=====
-g.selectAll("g").each(function() {
+// ===== ラベル生成 =====
+mapLayer.selectAll("g").each(function(){
 
   const group = d3.select(this);
   const title = group.select("title").text();
 
-  if (!title) return;
+  if(!title) return;
 
-  const japaneseName = title.split(" / ")[0];
+  const name = title.split(" / ")[0];
 
   const bbox = this.getBBox();
-  const cx = bbox.x + bbox.width / 2;
-  const cy = bbox.y + bbox.height / 2;
+  const cx = bbox.x + bbox.width/2;
+  const cy = bbox.y + bbox.height/2;
 
   labelLayer.append("text")
-    .attr("class", "label")
-    .attr("x", cx)
-    .attr("y", cy)
-    .text(japaneseName);
+    .attr("class","label")
+    .attr("data-x",cx)
+    .attr("data-y",cy)
+    .attr("x",cx)
+    .attr("y",cy)
+    .text(name);
 });
 
-
 // ===== ズーム制御 =====
-const bounds = g.node().getBBox();
+const bounds = mapLayer.node().getBBox();
 
 const width = window.innerWidth;
 const height = window.innerHeight;
@@ -105,44 +107,45 @@ const height = window.innerHeight;
 const mapWidth = bounds.width;
 const mapHeight = bounds.height;
 
-const scaleX = width / mapWidth;
-const scaleY = height / mapHeight;
+const minScale = Math.min(
+  width/mapWidth,
+  height/mapHeight
+);
 
-const minScale = Math.min(scaleX, scaleY);
+const initialX =
+  (width - mapWidth*minScale)/2
+  - bounds.x*minScale;
 
-const initialX = (width - mapWidth * minScale) / 2 - bounds.x * minScale;
-const initialY = (height - mapHeight * minScale) / 2 - bounds.y * minScale;
+const initialY =
+  (height - mapHeight*minScale)/2
+  - bounds.y*minScale;
 
 const zoom = d3.zoom()
-  .scaleExtent([minScale, 8])
-  .on("zoom", (event) => {
+  .scaleExtent([minScale,8])
+  .on("zoom",(event)=>{
 
-    g.attr("transform", event.transform);
+    mapLayer.attr("transform",event.transform);
 
     labelLayer.selectAll("text")
-      .attr("x", function() {
-        const x = d3.select(this).attr("data-x");
-        return event.transform.applyX(x);
+      .attr("x",function(){
+        return event.transform.applyX(
+          +d3.select(this).attr("data-x")
+        );
       })
-      .attr("y", function() {
-        const y = d3.select(this).attr("data-y");
-        return event.transform.applyY(y);
+      .attr("y",function(){
+        return event.transform.applyY(
+          +d3.select(this).attr("data-y")
+        );
       });
 
   });
-
-
-// 元座標保存
-labelLayer.selectAll("text")
-  .attr("data-x", function() { return d3.select(this).attr("x"); })
-  .attr("data-y", function() { return d3.select(this).attr("y"); });
 
 svg.call(zoom);
 
 svg.call(
   zoom.transform,
   d3.zoomIdentity
-    .translate(initialX, initialY)
+    .translate(initialX,initialY)
     .scale(minScale)
 );
 
