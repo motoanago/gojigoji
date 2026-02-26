@@ -2,42 +2,49 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>日本地図</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Japan Map</title>
 
 <style>
 body{
   margin:0;
-  background:#f5f5f5;
-  font-family:
-    "Hiragino Kaku Gothic ProN",
-    "Yu Gothic",
-    "Noto Sans JP",
-    sans-serif;
+  background:#f5f7fa;
+  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
 }
 
 #map-container{
   width:100%;
-  height:100vh;
+  max-width:900px;
+  margin:auto;
 }
 
 svg{
   width:100%;
-  height:100%;
+  height:auto;
 }
 
-/* 都道府県 */
-.prefecture{
-  cursor:pointer;
+/* 県のスタイル */
+.prefecture path{
+  fill:#ffffff;
   stroke:#333;
   stroke-width:1;
+  transition: fill .2s ease;
+  cursor:pointer;
 }
 
-/* テキスト */
-.prefecture text{
-  font-size:13px;
-  fill:#111;
-  font-weight:300;
+/* 選択中 */
+.prefecture.active path{
+  fill:#4da3ff !important;
+}
+
+/* ラベル */
+.pref-label{
+  font-size:11px;
+  font-weight:500;   /* ← 少し細く */
+  fill:#222;
   pointer-events:none;
+  text-anchor:middle;
+  dominant-baseline:middle;
 }
 </style>
 </head>
@@ -49,31 +56,45 @@ svg{
 <script>
 fetch("map-mobile.svg")
 .then(res => res.text())
-.then(data => {
+.then(svgText => {
 
-  document.getElementById("map-container").innerHTML = data;
-
+  document.getElementById("map-container").innerHTML = svgText;
   const svg = document.querySelector("svg");
-  const prefs = svg.querySelectorAll(".prefecture");
 
-  prefs.forEach(pref => {
+  const prefectures = svg.querySelectorAll(".prefecture");
 
-    const title = pref.querySelector("title");
-    if(!title) return;
+  prefectures.forEach(pref => {
 
-    const name = title.textContent.split("/")[0].trim();
+    const name = pref.getAttribute("data-name") || "";
 
-    // ===== 初期色を強制リセット =====
-    pref.querySelectorAll("path, polygon").forEach(el=>{
-      el.style.fill = "#ffffff";
-    });
+    const paths = pref.querySelectorAll("path");
+    let x = 0;
+    let y = 0;
 
-    let targetElement = pref;
+    /* =========================
+       東京だけ特別処理
+    ========================== */
+    if(name === "東京"){
 
-    // ===== 鹿児島は最大面積 =====
-    if(name === "鹿児島"){
-      const paths = pref.querySelectorAll("path, polygon");
+      let mainlandBox = null;
 
+      paths.forEach(p=>{
+        const b = p.getBBox();
+
+        // 東京本土は上部にある（島は下に伸びている）
+        if(b.y < 80 && b.width > 20){
+          mainlandBox = b;
+        }
+      });
+
+      if(mainlandBox){
+        x = mainlandBox.x + mainlandBox.width / 2;
+        y = mainlandBox.y + mainlandBox.height / 2;
+      }
+
+    }else{
+
+      // 通常は一番大きい面積のパスを使用
       let largest = null;
       let maxArea = 0;
 
@@ -82,80 +103,44 @@ fetch("map-mobile.svg")
         const area = b.width * b.height;
         if(area > maxArea){
           maxArea = area;
-          largest = p;
+          largest = b;
         }
       });
 
-      if(largest) targetElement = largest;
-    }
-
-    const bbox = targetElement.getBBox();
-    let x = bbox.x + bbox.width / 2;
-    let y = bbox.y + bbox.height / 2;
-
-    // ===== 東京は本土だけ取得 =====
-    if(name === "東京"){
-      const paths = pref.querySelectorAll("path");
-      let mainland = null;
-      let maxArea = 0;
-
-      paths.forEach(p=>{
-        const b = p.getBBox();
-        const area = b.width * b.height;
-        if(area > maxArea){
-          maxArea = area;
-          mainland = p;
-        }
-      });
-
-      if(mainland){
-        const b = mainland.getBBox();
-        x = b.x + b.width / 2;
-        y = b.y + b.height / 2;
+      if(largest){
+        x = largest.x + largest.width / 2;
+        y = largest.y + largest.height / 2;
       }
     }
 
-    const text = document.createElementNS("http://www.w3.org/2000/svg","text");
-    text.setAttribute("x", x);
-    text.setAttribute("y", y);
-    text.setAttribute("text-anchor","middle");
-    text.setAttribute("dominant-baseline","middle");
+    /* =========================
+       ラベル生成
+    ========================== */
+    if(name){
+      const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+      text.setAttribute("x", x);
+      text.setAttribute("y", y);
+      text.setAttribute("class","pref-label");
+      text.textContent = name;
+      svg.appendChild(text);
+    }
 
-    text.textContent = name
-      .replace("県","")
-      .replace("府","")
-      .replace("都","");
+    /* =========================
+       クリック処理（色残り防止）
+    ========================== */
+    pref.addEventListener("click", function(){
 
-    pref.appendChild(text);
-
-    // ===== クリック制御（完全色管理）=====
-    let selected = false;
-
-    pref.addEventListener("click", ()=>{
-
-      selected = !selected;
-
-      pref.querySelectorAll("path, polygon").forEach(el=>{
-        el.style.fill = selected ? "#66aaff" : "#ffffff";
+      // 全解除
+      prefectures.forEach(p=>{
+        p.classList.remove("active");
+        const ps = p.querySelectorAll("path");
+        ps.forEach(path=>{
+          path.style.fill = "";  // ← 完全リセット
+        });
       });
 
-    });
-
-    // ===== hover制御 =====
-    pref.addEventListener("mouseenter", ()=>{
-      if(!selected){
-        pref.querySelectorAll("path, polygon").forEach(el=>{
-          el.style.fill = "#dceeff";
-        });
-      }
-    });
-
-    pref.addEventListener("mouseleave", ()=>{
-      if(!selected){
-        pref.querySelectorAll("path, polygon").forEach(el=>{
-          el.style.fill = "#ffffff";
-        });
-      }
+      // 選択
+      this.classList.add("active");
     });
 
   });
