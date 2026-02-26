@@ -29,6 +29,7 @@ svg{
   fill:white;
   stroke:#333;
   stroke-width:1;
+  cursor:pointer;
 }
 
 .prefecture.active{
@@ -48,13 +49,13 @@ text{
 
 <body>
 
-<h1>あいかのにほんせいは</h1>
+<h1>ｗｗｗｗｗｗｗｗｗｗｗｗｗｗｗｗ</h1>
 <div id="map-container"></div>
 
 <script>
 const container = document.getElementById("map-container");
 
-let scale = 1;            // 1が最小（全体表示）
+let scale = 1;
 let translateX = 0;
 let translateY = 0;
 
@@ -82,7 +83,7 @@ fetch("map-full.svg")
     svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
   }
 
-  // すべてをgで包む
+  // ===== すべてをgで包む =====
   g = document.createElementNS("http://www.w3.org/2000/svg","g");
   while(svg.firstChild){
     g.appendChild(svg.firstChild);
@@ -91,36 +92,55 @@ fetch("map-full.svg")
 
   const prefs = g.querySelectorAll(".prefecture");
 
-  // ===== 県名追加 =====
+  // ===== 県名追加（離島除外対応版）=====
   prefs.forEach(pref=>{
 
     const title = pref.querySelector("title");
     if(!title) return;
 
     const name = title.textContent.split("/")[0].trim();
-    const bbox = pref.getBBox();
 
-    let x = bbox.x + bbox.width / 2;
-    let y = bbox.y + bbox.height / 2;
+    // ===== 本土だけのBBoxを取得 =====
+    let mainBBox = null;
+    let maxArea = 0;
 
-    // ★ 鹿児島県と東京都だけ上端に表示
-    if(name === "鹿児島県" || name === "東京都"){
-      y = bbox.y + 15; // 上端＋少し下（調整可）
+    const paths = pref.querySelectorAll("path");
+
+    if(paths.length > 0){
+
+      paths.forEach(p=>{
+        const b = p.getBBox();
+        const area = b.width * b.height;
+
+        if(area > maxArea){
+          maxArea = area;
+          mainBBox = b;
+        }
+      });
+
+    } else {
+      mainBBox = pref.getBBox();
     }
+
+    if(!mainBBox) return;
+
+    let x = mainBBox.x + mainBBox.width / 2;
+    let y = mainBBox.y + mainBBox.height / 2;
 
     const text = document.createElementNS("http://www.w3.org/2000/svg","text");
     text.setAttribute("x", x);
     text.setAttribute("y", y);
     text.setAttribute("text-anchor","middle");
     text.setAttribute("dominant-baseline","middle");
-    text.textContent = name;
+    text.textContent = name.replace("県","").replace("都","").replace("府","");
 
     pref.appendChild(text);
 
-    // ★ 複数選択（赤）
+    // 複数選択（赤）
     pref.addEventListener("click",()=>{
       pref.classList.toggle("active");
     });
+
   });
 
   updateTransform();
@@ -144,7 +164,6 @@ fetch("map-full.svg")
   // ===== タッチ移動 =====
   container.addEventListener("touchmove", e=>{
 
-    // ピンチ拡大
     if(e.touches.length===2){
 
       e.preventDefault();
@@ -152,7 +171,6 @@ fetch("map-full.svg")
       const newDistance = getDistance(e.touches);
       let newScale = initialScale * (newDistance / initialDistance);
 
-      // 縮小禁止、最大4倍
       newScale = Math.max(1, Math.min(newScale,4));
 
       const pt = svg.createSVGPoint();
@@ -168,7 +186,6 @@ fetch("map-full.svg")
       updateTransform();
     }
 
-    // ドラッグ
     else if(e.touches.length===1 && isDragging){
 
       const dx = e.touches[0].clientX - startX;
@@ -230,4 +247,3 @@ function getDistance(touches){
 
 </body>
 </html>
-
